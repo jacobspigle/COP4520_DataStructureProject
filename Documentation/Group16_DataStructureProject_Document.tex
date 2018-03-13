@@ -1,0 +1,75 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage[utf8]{inputenc}
+\usepackage{array}
+\usepackage{lipsum}
+\graphicspath{{images/}}
+\usepackage{parskip}
+\usepackage{indentfirst}
+\usepackage{courier}
+\usepackage{titlesec}
+\usepackage{wrapfig}
+\usepackage{caption}
+\usepackage[left=1.5in, right=1in, top = 1in, bottom = 1in]{geometry}
+\usepackage{float}
+\usepackage[ruled]{algorithm}
+\usepackage{algpseudocode}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{rotating}
+
+\geometry{headheight = 12pt}
+\parindent 15pt
+\parskip 2ex
+
+\usepackage{filecontents}
+\begin{filecontents}{\citations.bib}
+	{
+		$bibliography goes here$
+	}
+\end{filecontents}
+
+\newcommand{\WRP}{\par\qquad\(\hookrightarrow\)\enspace}
+
+\renewcommand{\listfigurename}{Figures}
+\renewcommand{\listtablename}{Tables}
+
+\titleformat{\chapter}[display]   
+{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}   
+\titlespacing*{\chapter}{0pt}{-50pt}{20pt}
+
+\author{Group 42 \\ -------------------- \\Jacob Spigle, Zachary Painter, David Akridge, Hunter Figueroa}
+\title{Critical Encounters}
+
+\begin{document}
+	
+\pagenumbering{Roman} 
+\maketitle
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+$start here$
+
+\newpage
+\stepcounter{chapter}
+\addcontentsline{toc}{chapter}{Figures}
+\listoffigures
+
+\newpage
+\stepcounter{chapter}
+\addcontentsline{toc}{chapter}{Tables}
+\listoftables
+
+\newpage
+\stepcounter{chapter}
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliographystyle{unsrt}
+\bibliography{\citations}
+
+\end{document}
