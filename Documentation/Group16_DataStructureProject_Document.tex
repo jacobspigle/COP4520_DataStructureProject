@@ -1,4 +1,4 @@
-\documentclass[12pt,a4paper]{report}
+\documentclass[12pt,a4paper]{article}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
@@ -13,25 +13,29 @@
 \usepackage{courier}
 \usepackage{titlesec}
 \usepackage{wrapfig}
+\usepackage[numbers]{natbib}
 \usepackage{caption}
 \usepackage[left=1.5in, right=1in, top = 1in, bottom = 1in]{geometry}
 \usepackage{float}
 \usepackage[ruled]{algorithm}
 \usepackage{algpseudocode}
-\usepackage{graphicx}
 \usepackage{url}
-\usepackage{cite}
 \usepackage{rotating}
-
 \geometry{headheight = 12pt}
 \parindent 15pt
 \parskip 2ex
 
 \usepackage{filecontents}
-\begin{filecontents}{\citations.bib}
+\begin{filecontents}{citations.bib}
 	{
-		$bibliography goes here$
-	}
+		@manual{ RedBlackDoc,
+			title = {Concurrent Wait-Free Red Black Trees},
+			author = {Aravind Natarajan and Lee H. Savoie and Neeraj Mittal},
+			organization = {The University of Texas at Dallas},
+			address = {Richardson, TX 75080, USA},
+			year = {2013},}
+		
+		%add references here
 \end{filecontents}
 
 \newcommand{\WRP}{\par\qquad\(\hookrightarrow\)\enspace}
@@ -43,33 +47,25 @@
 {\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}   
 \titlespacing*{\chapter}{0pt}{-50pt}{20pt}
 
-\author{Group 42 \\ -------------------- \\Jacob Spigle, Zachary Painter, David Akridge, Hunter Figueroa}
-\title{Critical Encounters}
+\author{Group 16 \\ -------------------- \\David Ferguson, Jacob Spigle}
+\title{Concurrent Wait-Free Red Black Trees}
 
 \begin{document}
 	
 \pagenumbering{Roman} 
 \maketitle
-\tableofcontents
+\begin{abstract}
+	This wait-free implementation of the Red Black tree data structure boasts search(), insert(), update(), and delete() functions, all executed utilizing single-word compare-and-swap instructions. The data structure's concurrent implementation employs the use of ``windows'', overlapping snapshots of the current state of the Red Black tree within the scope of the windows' root node. Each of these windows is a balanced Red Black tree itself, and pushing a modified window into the windows' origin will result in a correct, linearizable solution. \par This solution also strives for optimal concurrency by introducing an array that holds pending instructions (\textit{announce}) and decides whether or not a thread will assist by checking for conflicts with it's own update operation (using \textit{gate}). \par An modify operation may also help during a search operation to ensure that the search operation eventually terminates \cite{RedBlackDoc}. This is necessary because this implementation avoids copying windows unnecessarily, and instead traversing to the next root when such a transaction would occur. \par These additions to the traditional sequential Red Black tree allow for an efficient algorithm that has outperformed other attempts at this implementation of the concurrent wait-free Red Black tree data structure.
+\end{abstract}
 \newpage
 \pagenumbering{arabic}
+\section{Introduction}
 
-$start here$
 
-\newpage
-\stepcounter{chapter}
-\addcontentsline{toc}{chapter}{Figures}
-\listoffigures
 
 \newpage
-\stepcounter{chapter}
-\addcontentsline{toc}{chapter}{Tables}
-\listoftables
-
-\newpage
-\stepcounter{chapter}
-\addcontentsline{toc}{chapter}{Bibliography}
+\addcontentsline{toc}{section}{Bibliography}
 \bibliographystyle{unsrt}
-\bibliography{\citations}
+\bibliography{citations}
 
 \end{document}
