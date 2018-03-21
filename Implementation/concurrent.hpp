@@ -2,23 +2,27 @@
 
 namespace RedBlackTree
 {
+    enum Status {WAITING, IN_PROGRESS, COMPLETED};
+    enum Type {SEARCH, INSERT, UPDATE, DELETE};
+    enum Color {RED, BLACK, NONE};
+    enum Flag {FREE, OWNED};
+
     template <class K, class V>
     class ConcurrentTree
     {
     public:
         ConcurrentTree() {};
-        bool Search(K key);
+        V Search(K key);
         void InsertOrUpdate(K key, V value);
         void Delete(K key);
-        void Travers(DataNode opData);
+        void Traverse(DataNode opData);
         void ExecuteOperation(DataNode opData);
+        void InjectOperation(DataNode opData);
     
     private:
         struct State
         {
-            enum Status {WAITING, IN_PROGRESS, COMPLETED};
-
-            Status status;
+            Enums::Status status;
             std::shared_ptr<ValueRecord> position;
         };
 
@@ -30,10 +34,8 @@ namespace RedBlackTree
 
         class DataNode
         {
-            enum Color {RED, BLACK, NONE};
-
-            Color color;
-            State state;
+            Enums::Color color;
+            Enums::State state;
             K key;
             V value;
             uint32_t pid;
@@ -41,18 +43,14 @@ namespace RedBlackTree
 
         class PointerNode
         {
-            enum Flag {FREE, OWNED};
-
-            Flag flag;
+            Enums::Flag flag;
             std::shared_ptr<DataNode> dNode;
         };
 
         class OperationRecord
         {
-            enum Type {SEARCH, INSERT, UPDATE, DELETE};
-
-            Type type;
-            State state;
+            Enums::Type type;
+            Enums::State state;
             V value;
             K key;
             uint32_t pid;
