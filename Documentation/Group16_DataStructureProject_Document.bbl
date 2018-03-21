@@ -5,4 +5,9 @@ Aravind Natarajan, Lee~H. Savoie, and Neeraj Mittal.
 \newblock {\em Concurrent Wait-Free Red Black Trees}.
 \newblock The University of Texas at Dallas, Richardson, TX 75080, USA, 2013.
 
+\bibitem{BottomUpRBD}
+Vitaliy Kubushyn.
+\newblock {\em Concurrent Localized Wait-Free Operations on a Red Black Tree}.
+\newblock University of Nevada, Las Vegas, 2014.
+
 \end{thebibliography}
