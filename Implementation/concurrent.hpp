@@ -1,8 +1,10 @@
-
-enum Status {WAITING, IN_PROGRESS, COMPLETED};
-enum Type {SEARCH, INSERT, UPDATE, DELETE};
-enum Color {RED, BLACK, NONE};
-enum Flag {FREE, OWNED};
+class Enums
+{
+    static enum Status {WAITING, IN_PROGRESS, COMPLETED};
+    static enum Type {SEARCH, INSERT, UPDATE, DELETE};
+    static enum Color {RED, BLACK, NONE};
+    static enum Flag {FREE, OWNED};
+};
 
 template <class K, class V>
 class ConcurrentTree
