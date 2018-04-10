@@ -1,5 +1,3 @@
-#include <thread>
-
 namespace RedBlackTree
 {
     enum Status {WAITING, IN_PROGRESS, COMPLETED};
