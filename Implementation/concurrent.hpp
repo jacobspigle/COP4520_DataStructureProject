@@ -1,57 +1,55 @@
-namespace RedBlackTree
+
+enum Status {WAITING, IN_PROGRESS, COMPLETED};
+enum Type {SEARCH, INSERT, UPDATE, DELETE};
+enum Color {RED, BLACK, NONE};
+enum Flag {FREE, OWNED};
+
+template <class K, class V>
+class ConcurrentTree
 {
-    enum Status {WAITING, IN_PROGRESS, COMPLETED};
-    enum Type {SEARCH, INSERT, UPDATE, DELETE};
-    enum Color {RED, BLACK, NONE};
-    enum Flag {FREE, OWNED};
+public:
+    ConcurrentTree() {};
+    V Search(K key);
+    void InsertOrUpdate(K key, V value);
+    void Delete(K key);
+    void Traverse(DataNode opData);
+    void ExecuteOperation(DataNode opData);
+    void InjectOperation(DataNode opData);
 
-    template <class K, class V>
-    class ConcurrentTree
+private:
+    struct State
     {
-    public:
-        ConcurrentTree() {};
-        V Search(K key);
-        void InsertOrUpdate(K key, V value);
-        void Delete(K key);
-        void Traverse(DataNode opData);
-        void ExecuteOperation(DataNode opData);
-        void InjectOperation(DataNode opData);
-    
-    private:
-        struct State
-        {
-            Enums::Status status;
-            std::shared_ptr<ValueRecord> position;
-        };
-
-        class ValueRecord
-        {
-            V value;
-            uint32_t gate;
-        };
-
-        class DataNode
-        {
-            Enums::Color color;
-            Enums::State state;
-            K key;
-            V value;
-            uint32_t pid;
-        };
-
-        class PointerNode
-        {
-            Enums::Flag flag;
-            std::shared_ptr<DataNode> dNode;
-        };
-
-        class OperationRecord
-        {
-            Enums::Type type;
-            Enums::State state;
-            V value;
-            K key;
-            uint32_t pid;
-        };
+        Enums::Status status;
+        std::shared_ptr<ValueRecord> position;
     };
-}
+
+    class ValueRecord
+    {
+        V value;
+        uint32_t gate;
+    };
+
+    class DataNode
+    {
+        Enums::Color color;
+        Enums::State state;
+        K key;
+        V value;
+        uint32_t pid;
+    };
+
+    class PointerNode
+    {
+        Enums::Flag flag;
+        std::shared_ptr<DataNode> dNode;
+    };
+
+    class OperationRecord
+    {
+        Enums::Type type;
+        Enums::State state;
+        V value;
+        K key;
+        uint32_t pid;
+    };
+};
