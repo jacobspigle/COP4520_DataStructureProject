@@ -1,77 +1,112 @@
-\documentclass[12pt,a4paper]{article}
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
-\usepackage{graphicx}
-\usepackage{multicol}
-\usepackage[utf8]{inputenc}
-\usepackage{array}
-\usepackage{lipsum}
-\graphicspath{{images/}}
-\usepackage{parskip}
-\usepackage{indentfirst}
-\usepackage{courier}
-\usepackage{titlesec}
-\usepackage{wrapfig}
-\usepackage{natbib}
-\usepackage{caption}
-\usepackage[left=1.5in, right=1in, top = 1in, bottom = 1in]{geometry}
-\usepackage{float}
-\usepackage[ruled]{algorithm}
-\usepackage{algpseudocode}
-\usepackage{url}
-\usepackage{rotating}
-\geometry{headheight = 12pt}
-\parindent 15pt
-\parskip 2ex
+\documentclass[letterpaper, 10 pt, conference]{ieeeconf}
 
-\usepackage{filecontents}
-\begin{filecontents}{citations.bib}
-	{
-		@manual{ RedBlackDoc,
-			title = {Concurrent Wait-Free Red Black Trees},
-			author = {Aravind Natarajan and Lee H. Savoie and Neeraj Mittal},
-			organization = {The University of Texas at Dallas},
-			address = {Richardson, TX 75080, USA},
-			year = {2013},}
-		
-		@manual{ BottomUpRBD,
-			title = {Concurrent Localized Wait-Free Operations on a Red Black Tree},
-			author = {Vitaliy Kubushyn},
-			organization = {University of Nevada, Las Vegas},
-			year = {2014},}
-			
-			
-		
-		%add references here
-\end{filecontents}
+\IEEEoverridecommandlockouts                              % This command is only
+% needed if you want to
+% use the \thanks command
+\overrideIEEEmargins
 
-\newcommand{\WRP}{\par\qquad\(\hookrightarrow\)\enspace}
+% The following packages can be found on http:\\www.ctan.org
+\usepackage{graphics} % for pdf, bitmapped graphics files
+\usepackage{epsfig} % for postscript graphics files
+\usepackage{mathptmx} % assumes new font selection scheme installed
+\usepackage{times} % assumes new font selection scheme installed
+\usepackage{amsmath} % assumes amsmath package installed
+\usepackage{amssymb}  % assumes amsmath package installed
+\usepackage{fixltx2e}
+\usepackage{verbatim}
 
-\renewcommand\abstractname{\textit{Abstract}}
-
-\author{Group 16 \\ -------------------- \\David Ferguson, Jacob Spigle}
-\title{Concurrent Wait-Free Red Black Trees}
+\title{\LARGE \bf
+	Concurrent Wait-Free Red Black Trees
+}
+\author{David Ferguson and Jacob Spigle% <-this % stops a space
+	\thanks{$^{1}$D. Ferguson is a student at Department of Electrical Engineering and Computer Science, University of Central Florida, Orlando, Florida, 32816-2450 }%
+	\thanks{$^{2}$J. Spigle is a student at Department of Electrical Engineering and Computer Science, University of Central Florida, Orlando, Florida, 32816-2450 %
+}}
 
 \begin{document}
 	
-\pagenumbering{arabic} 
-\maketitle
-\paragraph{\textbf{Abstract.}}
-We are implementing a concurrently managed red-black tree using wait-free algorithms designed and presented in \cite{RedBlackDoc}. We will be writing these algorithms using C++ as our programming language.  Concurrency during manipulation of a tree data structure is not plausible without additional (and creative) data structures because of the multiple instructions that rotations perform during the re-balancing of the tree. Using the techniques outlined in \cite{RedBlackDoc}, we will have a concurrent algorithm that makes progress, is linearizable, and correct. Experiments run by the authors of this implementation prove that their solution provides ``significantly better performance''\cite{RedBlackDoc} than other attempts that preceded it, including both attempts at concurrency and lock-based implementations.
+	
+	
+	\maketitle
+	\thispagestyle{empty}
+	\pagestyle{empty}
+	
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\begin{abstract}
+		
+		Our re-implementation of Natarajan, Savoie, and Mittal's wait-free algorithm \cite{c1} seeks to not only imitate the concurrent data structure presented, but also transform it into a transactional data structure using the RSTM library. We are implementing a concurrently managed red-black tree using wait-free algorithms designed and presented in \cite{c1}. We will be writing these algorithms using C++ as our programming language.  Concurrency during manipulation of a tree data structure is not plausible without additional (and creative) data structures because of the multiple instructions that rotations perform during the re-balancing of the tree. Using the techniques outlined in \cite{c1}, we will have a concurrent algorithm that makes progress, is linearizable, and correct. Experiments run by the authors of this implementation prove that their solution provides ``significantly better performance''\cite{c1} than other attempts that preceded it, including both attempts at concurrency and lock-based implementations.
+		
+	\end{abstract}
+	
+	
+	\section{Introduction}
+	This wait-free implementation of the Red Black tree data structure boasts search(), insert(), update(), and delete() functions, all executed utilizing single-word compare-and-swap instructions. The data structure's concurrent implementation employs the use of ``windows'', which are overlapping snapshots of the current state of the Red Black tree within the scope of the windows' root node. Windows are copied from a global window, then edited locally before being pushed back to the global view of the Red Black tree itself, and pushing a modified window into the windows' origin will result in a correct, linearizable solution. This is because the window itself can be atomically swapped, where rotations are done inside a modified window, and using a single-word compare-and-swap, are placed back into the node where the window originated. This solution also strives for optimal concurrency by introducing an array that holds pending instructions (using the \textit{announce} array) and decides whether or not a thread will assist by checking for conflicts with it's own update operation (using a \textit{gate} variable, given to each record in the tree). A modify operation also is tasked to help another operation, choosing which to help in a round robin manner, so that it may also help during a search operation to ensure that it may eventually terminate \cite{c1}. This is necessary because this implementation avoids copying windows unnecessarily and instead traverses to the next window's root node when such a transaction would occur. Because this skipping occurs during a search operation, it would be possible for the operation to be overtaken,,  These additions to the traditional sequential Red Black tree allow for an efficient algorithm that has outperformed other attempts at this implementation of the concurrent wait-free Red Black tree data structure. \\ \\
+	
+	\textit{Related Work: }A previous attempt at creating a concurrent Red-Black tree data structure was implemented by Kim \textit{et. al.} \cite{c3}. It is built upon Ma's \cite{c4} work with specifically insertions upon a lock-free Red-Black tree data structure, and \cite{c3} extends \cite{c4} to include both modification and deletion techniques. There have been a few more recent attempts at this wait-free implementation of manipulating red-black trees concurrently. Notably, in 2014, there was a thesis written proposing that instead of a Top-Down approach to obtaining ownership of nodes within the tree, that working from Bottom-Up approach would ``[allow] operations interested in completely disparate portions of the tree to execute entirely uninhibited''\cite{c2}. \\ \\
+	
+	\textit{Contributions: }In this paper we seek to present our re-implementation of the Concurrent Wait-Free Red-Black Tree data structure presented in \cite{c1}. We also wish to present our solution to transforming \cite{c1} into a Transactional data structure by using the RSTM C++ Library presented by Marathe \textit{et. al.} \cite{c6}. To do this, we will also need to employ POSIX Threads (pthreads) in our C++ code.
+	\section{Preliminaries}
+	
+	 The Concurrent Wait-Free Red Black Tree algorithm that was presented by \cite{c1} is derived from a few other presented algorithms. \cite{c1} presents a conglomeration of these algorithms in their modified state that creates the presented concurrent data structure.
+	 
+	 \subsection*{Tsay \& Li's Wait-Free Framework for Concurrent Tree-Based Data Structures}
+	 Tsay \& Li's \cite{c5} TL-Framework is a construction that can be applied to any tree-based data structure attempting concurrency, provided the hardware supports load-linked, store-conditional and check-valid synchronization primitives. \cite{c5} presents the ability to perform wait-free top-down operations by utilizing 'windows', which are described as ``rooted subtree[s] of [a] tree structure, that is, a small, contiguous piece of the tree'' \cite{c1}. Essentially, as a process progresses through a tree while attempting to perform its' given operation, the process will continuously create copies of each node when utilizing this framework, creating a 'window' accessible only by the local process. We call the current windows of the tree W\textsubscript{G} for window global. W\textsubscript{G} is the only window accessible from the root node of the tree. With a firm grasp on the concept of windows, we dive into the steps that must be taken to perform any operation when utilizing the TL-Framework as described in \cite{c1}:
+	 \subsubsection{Explore-Help-And-Copy}
 
-\section{Introduction}
-This wait-free implementation of the Red Black tree data structure boasts search(), insert(), update(), and delete() functions, all executed utilizing single-word compare-and-swap instructions. The data structure's concurrent implementation employs the use of ``windows'', which are overlapping snapshots of the current state of the Red Black tree within the scope of the windows' root node. Each of these windows is a balanced Red Black tree itself, and pushing a modified window into the windows' origin will result in a correct, linearizable solution. This is because the window itself can be atomically swapped, where rotations are done inside a modified window, and using a single-word compare-and-swap, are placed back into the node where the window originated. This solution also strives for optimal concurrency by introducing an array that holds pending instructions (using the \textit{announce} variable) and decides whether or not a thread will assist by checking for conflicts with it's own update operation (using a \textit{gate} variable, given to each record in the tree). An modify operation may also help during a search operation to ensure that the search operation eventually terminates \cite{RedBlackDoc}. This is necessary because this implementation avoids copying windows unnecessarily, and instead traversing to the next root when such a transaction would occur. These additions to the traditional sequential Red Black tree allow for an efficient algorithm that has outperformed other attempts at this implementation of the concurrent wait-free Red Black tree data structure. \\ \\
-\textit{Related Work: } There have been a few more recent attempts at this wait-free implementation of manipulating red-black trees concurrently. Notably, in 2014, there was a thesis written proposing that instead of a Top-Down approach to obtaining ownership of nodes within the tree, that working from Bottom-Up approach would ``[allow] operations interested in completely disparate portions of the tree to execute entirely uninhibited''\cite{BottomUpRBD}.
+\begin{comment}
+	\subsection{Figures and Tables}
+	
+	Positioning Figures and Tables: Place figures and tables at the top and bottom of columns. Avoid placing them in the middle of columns. Large figures and tables may span across both columns. Figure captions should be below the figures; table heads should appear above the tables. Insert figures and tables after they are cited in the text. Use the abbreviation ÒFig. 1, even at the beginning of a sentence.
+	
+	\begin{table}[h]
+		\caption{An Example of a Table}
+		\label{table_example}
+		\begin{center}
+			\begin{tabular}{|c||c|}
+				\hline
+				One & Two\\
+				\hline
+				Three & Four\\
+				\hline
+			\end{tabular}
+		\end{center}
+	\end{table}
+	
+	\begin{figure}[thpb]
+		\centering
+		\framebox{\parbox{3in}{We suggest that you use a text box to insert a graphic (which is ideally a 300 dpi TIFF or EPS file, with all fonts embedded) because, in an document, this method is somewhat more stable than directly inserting a picture.
+		}}
+		%\includegraphics[scale=1.0]{figurefile}
+		\caption{Inductance of oscillation winding on amorphous
+			magnetic core versus DC bias magnetic field}
+		\label{figurelabel}
+	\end{figure}
 
-\section{Current State, Problems, and Planning}
-We do not foresee many changes between the given implementation in \cite{RedBlackDoc} and our own, because the psuedo code written in the document is easily translatable to actual C++ code. However, our own implementation's class structure will diverge from their own, because we will be reverse engineering it from references in the algorithms provided.
-\par Because we are developing in a multithreaded fashion in C++, we are using the POSIX Threads library (pthread.h) to create, join, and monitor our threads. For atomic operations such as Compare and Swap (CAS), and for utilization of atomic variables we will be using the C++ Standard Library (std::atomic). The usage of these libraries will be the tools we use to create the concurrent data structure.
-\par As of right now, our task is to properly be able to handle the external record for a node's value, as it is not being stored inside the node itself for this implementation. We have encountered some issues simply with translation of these algorithms, figuring out the best way to bring them into the code without sacrificing correctness. We struggled a bit with deciding whether keeping the decision made by the authors of this implementation to ``assume the tree is never empty and always contains at least one node''\cite{RedBlackDoc}. For the purpose of getting our solution up and running, we are current following the practices of the authors.
-\par Our plan of action for completing this project is to have a working solution for the concurrent data structure by the end of March. Moving forward onto part two from April till the final due date. In the event that we are able to complete both parts earlier than expected, we hope to conduct further testing and experimentation, possibly further improving upon our solution or rectifying any overlooked sections where our implementation is unoptimized.
-\newpage
-\addcontentsline{toc}{section}{Bibliography}
-\bibliographystyle{unsrt}
-\bibliography{citations}
+	
+	Figure Labels: Use 8 point Times New Roman for Figure labels. Use words rather than symbols or abbreviations when writing Figure axis labels to avoid confusing the reader. As an example, write the quantity ÒMagnetization, or ÒMagnetization, M, not just ÒM. If including units in the label, present them within parentheses. Do not label axes only with units. In the example, write ÒMagnetization (A/m) or ÒMagnetization {A[m(1)]}, not just ÒA/m. Do not label axes with a ratio of quantities and units. For example, write ÒTemperature (K), not ÒTemperature/K.
+\end{comment}
+	\section{CONCLUSIONS}
+	
+	Our presentation of both the concurrent and transactional data structure implementations deriving from \cite{1} demonstrates the linearizibility of the resulting C++ program. Searching in the Red-Black tree using these algorithms will be significantly less expensive due to the lack of helping. Modify operations that are performed in separate windows are able to execute concurrently without loss of correctness at any point because of the single word compare and swap instructions used when swapping out windows during a window transaction. Our implementation of \cite{1}'s presented Wait-Free Memory Reclamation allows for nodes that have been essentially removed from the data structure (passive nodes) and are no longer in danger of being referenced by an operation inside that window may be effectively freed or reallocated accordingly.
 
+	
+	\section*{APPENDIX}
+	
+	Appendixes should appear before the acknowledgment.
+	
+	\begin{thebibliography}{99}
+		
+		\bibitem{c1} A. Natarajan, L. Savoie, \& N. Mittal 2013. 'Concurrent Wait-Free Red Black Trees'. The University of Texas at Dallas, Richardson, TX 75080, USA.
+		\bibitem{c2} V. Kubushyn 2014. 'Concurrent Localized Wait-Free Operations on a Red Black Tree'. University of Nevada, Las Vegas.
+		\bibitem{c3} J. H. Kim, H. Cameron, \& P. Graham 2006. 'Lock-Free Red-Black Trees Using CAS'. \textit{Concurrency and Computation: Practice and Experience}, 1-40.
+		\bibitem{c4} J. Ma, 2003. 'Lock-Free Insertions on Red-Black Trees. MSc thesis. University of Manitoba.
+		\bibitem{c5} J.J. Tsay \& H.C. Li 1994. 'Lock-Free Concurrent Tree Structures for Multiprocessor Systems'. \textit{Parallel and Distributed Systems, 1994}, 554-549. IEEE.
+		\bibitem{c6} V.J. Marathe, M.F. Spear, C. Heriot, A. Acharya, D. Eisenstat, W.N. Scherer III \& M.L. Scott. 'Lowering the Overhead of Nonblocking Software Transactional Memory'. Computer Science Department, University of Rochester.
+		
+	\end{thebibliography}
+	
+	
+	
+	
 \end{document}
