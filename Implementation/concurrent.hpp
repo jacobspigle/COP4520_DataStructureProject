@@ -5,48 +5,62 @@ enum Type {SEARCH, INSERT, UPDATE, DELETE};
 enum Color {RED, BLACK, UNCOLORED};
 enum Flag {FREE, OWNED};
 
-template <class K, class V>
+template <class V>
 class ValueRecord
 {
     V value;
     uint32_t gate;
 };
 
-template <class K, class V>
+template <class V>
 class State
 {
+public:
     Status status;
-    std::shared_ptr<ValueRecord<K, V>> position;
+    ValueRecord<V> *position;
+
+    State()
 };
 
-template <class K, class V>
+template <class V>
 class DataNode
 {
+public:
     Color color;
-    State<K, V> state;
+    State<V> state;
     K key;
     V value;
     uint32_t pid;
+
+    DataNode *left;
+    DataNode *right;
+
+    DataNode()
+    {
+        color = UNCOLORED;
+        left = nullptr;
+        right = nullptr;
+    }
 };
 
-template <class K, class V>
+template <class V>
 class PointerNode
 {
     Flag flag;
-    std::shared_ptr<DataNode<K, V>> dNode;
+    std::shared_ptr<DataNode<V>> dNode;
 };
 
-template <class K, class V>
+template <class V>
 class OperationRecord
 {
     Type type;
-    State<K, V> state;
+    State<V> state;
     V value;
     K key;
     uint32_t pid;
 };
 
-template <class K, class V>
+template <class V>
 class ConcurrentTree
 {
 public:
@@ -54,12 +68,12 @@ public:
     V Search(K key);
     void InsertOrUpdate(K key, V value);
     void Delete(K key);
-    void Traverse(DataNode<K, V> opData);
-    void ExecuteOperation(DataNode<K, V> opData);
-    void InjectOperation(DataNode<K, V> opData);
-    void ExecuteWindowTransaction(DataNode<K, V> pNode, DataNode<K,V> dNode);
-    bool ExecuteCheapWindowTransaction(DataNode<K, V> pNode, DataNode<K, V> dNode);
-    void SlideWindowDown(PointerNode<K, V> pMoveFrom, PointerNode<K, V> dMoveFrom, PointerNode<K, V> pMoveTo, PointerNode<K, V> dMoveTo);
+    void Traverse(DataNode<V> opData);
+    void ExecuteOperation(DataNode<V> opData);
+    void InjectOperation(DataNode<V> opData);
+    void ExecuteWindowTransaction(DataNode<V> pNode, DataNode<K,V> dNode);
+    bool ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNode<V> dNode);
+    void SlideWindowDown(PointerNode<V> pMoveFrom, PointerNode<V> dMoveFrom, PointerNode<V> pMoveTo, PointerNode<V> dMoveTo);
 };
 
 #include "concurrent.tcc"
