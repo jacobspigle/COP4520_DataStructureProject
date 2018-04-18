@@ -20,6 +20,9 @@ public:
     ValueRecord<V> *position;
 
     State()
+    {
+        
+    }
 };
 
 template <class V>
