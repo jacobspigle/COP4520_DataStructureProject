@@ -21,7 +21,7 @@ public:
 
     State()
     {
-        
+
     }
 };
 
@@ -43,6 +43,18 @@ public:
         color = UNCOLORED;
         left = nullptr;
         right = nullptr;
+    }
+
+    DataNode *clone()
+    {
+        DataNode *copy = new DataNode();
+        copy.color  = color;
+        copy.state  = state;
+        copy.key    = key;
+        copy.value  = value;
+        copy.pid    = pid;
+        copy.left   = left;
+        copt.right  = right;
     }
 };
 
