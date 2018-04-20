@@ -1,27 +1,41 @@
 #include <memory>
+#include <pthread.h>
 
-enum Status {WAITING, IN_PROGRESS, COMPLETED};
+enum Status {WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
+enum Flag {FREE = 0, OWNED = 1};
 enum Type {SEARCH, INSERT, UPDATE, DELETE};
 enum Color {RED, BLACK, UNCOLORED};
-enum Flag {FREE, OWNED};
+
+template <class T, class U>
+class PackedPointer
+{
+public: 
+    T* mPackedPointer;
+
+    PackedPointer(U tag, T* packedPointer)
+    {
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (uint64_t) packedPointer & (!mask);
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (uint64_t) packedPointer | mask;
+    }
+
+    U getTag()
+    {
+        return (U) ((uint64_t) mPackedPointer >> 62);
+    }
+};
 
 template <class V>
 class ValueRecord
 {
-    V value;
-    uint32_t gate;
-};
+    V mValue;
+    uint32_t mGate;
 
-template <class V>
-class State
-{
-public:
-    Status status;
-    ValueRecord<V> *position;
-
-    State()
+    ValueRecord(V value, uint32_t gate)
     {
-
+        mValue = value;
+        mGate = gate;
     }
 };
 
@@ -29,50 +43,54 @@ template <class V>
 class DataNode
 {
 public:
-    Color color;
-    State<V> state;
-    K key;
-    V value;
-    uint32_t pid;
+    Color mColor;
+    uint32_t mKey;
+    ValueRecord<V> *mValData;
+    OperationRecord<V> *mOpData;
 
-    DataNode *left;
-    DataNode *right;
+    DataNode *mLeft;
+    DataNode *mRight;
 
+    PackedPointer<V, Status> mNext;
+    
+    //sentinel use only ***
     DataNode()
     {
-        color = UNCOLORED;
-        left = nullptr;
-        right = nullptr;
+        mColor = BLACK;
+        mValData = new ValueRecord(NULL, 0);
+        mLeft = nullptr;
+        mRight = nullptr;
     }
 
     DataNode *clone()
     {
         DataNode *copy = new DataNode();
-        copy.color  = color;
-        copy.state  = state;
-        copy.key    = key;
-        copy.value  = value;
-        copy.pid    = pid;
-        copy.left   = left;
-        copt.right  = right;
+        copy->mColor = mColor;
+        copy->mKey = mKey;
+        copy->mValData = mValData;
+        copy->mOpData = mOpData;
+        copy->mLeft = mLeft;
+        copy->mRight = mRight;
+        copy->mNext = mNext;
+        return copy;
     }
-};
-
-template <class V>
-class PointerNode
-{
-    Flag flag;
-    std::shared_ptr<DataNode<V>> dNode;
 };
 
 template <class V>
 class OperationRecord
 {
-    Type type;
-    State<V> state;
-    V value;
-    K key;
-    uint32_t pid;
+    Type mType;
+    uint32_t mKey;
+    V mValue;
+    uint32_t mPid;
+    PackedPointer<V, Status> mState;
+
+    OperationRecord(Type type, uint32_t key, V value)
+    {
+        mType = type;
+        mKey = key;
+        mValue = value;
+    }
 };
 
 template <class V>
