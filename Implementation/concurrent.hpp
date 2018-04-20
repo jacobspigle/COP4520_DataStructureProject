@@ -6,13 +6,15 @@ enum Flag {FREE = 0, OWNED = 1};
 enum Type {SEARCH, INSERT, UPDATE, DELETE};
 enum Color {RED, BLACK, UNCOLORED};
 
-template <class T, class U>
+template <class U>
 class PackedPointer
 {
 public: 
-    T* mPackedPointer;
+    std::string* mPackedPointer;
 
-    PackedPointer(U tag, T* packedPointer)
+    PackedPointer() = delete;
+
+    PackedPointer(U tag, std::string* packedPointer)
     {
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (uint64_t) packedPointer & (!mask);
@@ -26,32 +28,31 @@ public:
     }
 };
 
-template <class V>
 class ValueRecord
 {
-    V mValue;
+public:
+    std::string mValue;
     uint32_t mGate;
 
-    ValueRecord(V value, uint32_t gate)
+    ValueRecord(std::string value, uint32_t gate)
     {
         mValue = value;
         mGate = gate;
     }
 };
 
-template <class V>
 class DataNode
 {
 public:
     Color mColor;
     uint32_t mKey;
-    ValueRecord<V> *mValData;
-    OperationRecord<V> *mOpData;
+    ValueRecord *mValData;
+    OperationRecord *mOpData;
 
     DataNode *mLeft;
     DataNode *mRight;
 
-    PackedPointer<V, Status> mNext;
+    PackedPointer<Status> mNext;
     
     //sentinel use only ***
     DataNode()
@@ -76,16 +77,15 @@ public:
     }
 };
 
-template <class V>
 class OperationRecord
 {
     Type mType;
     uint32_t mKey;
-    V mValue;
+    std::string mValue;
     uint32_t mPid;
-    PackedPointer<V, Status> mState;
+    PackedPointer<Status> mState;
 
-    OperationRecord(Type type, uint32_t key, V value)
+    OperationRecord(Type type, uint32_t key, std::string value)
     {
         mType = type;
         mKey = key;
@@ -93,20 +93,19 @@ class OperationRecord
     }
 };
 
-template <class V>
 class ConcurrentTree
 {
 public:
     ConcurrentTree() {};
-    V Search(K key);
-    void InsertOrUpdate(K key, V value);
+    std::string Search(K key);
+    void InsertOrUpdate(K key, std::string value);
     void Delete(K key);
-    void Traverse(DataNode<V> opData);
-    void ExecuteOperation(DataNode<V> opData);
-    void InjectOperation(DataNode<V> opData);
-    void ExecuteWindowTransaction(DataNode<V> pNode, DataNode<K,V> dNode);
-    bool ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNode<V> dNode);
-    void SlideWindowDown(PointerNode<V> pMoveFrom, PointerNode<V> dMoveFrom, PointerNode<V> pMoveTo, PointerNode<V> dMoveTo);
+    void Traverse(DataNode<std::string> opData);
+    void ExecuteOperation(DataNode<std::string> opData);
+    void InjectOperation(DataNode<std::string> opData);
+    void ExecuteWindowTransaction(DataNode<std::string> pNode, DataNode<K,std::string> dNode);
+    bool ExecuteCheapWindowTransaction(DataNode<std::string> pNode, DataNode<std::string> dNode);
+    void SlideWindowDown(PointerNode<std::string> pMoveFrom, PointerNode<std::string> dMoveFrom, PointerNode<std::string> pMoveTo, PointerNode<std::string> dMoveTo);
 };
 
 #include "concurrent.tcc"
