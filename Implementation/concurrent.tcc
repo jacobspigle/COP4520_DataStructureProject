@@ -233,9 +233,14 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(PackedPointer *pNode, DataNode<
 
                 free(pRootWaiting);
             }
-            if(executeCheapWindowTransaction( pNode, dCurrent ) == false) {
+
+            DataNode<V> windoSoFar;
+
+            if(ExecuteCheapWindowTransaction( pNode, dCurrent ) == false) {
                 // traverse the window using Tarjan’s algorithm, making copies as required
-                windowSoFar = {clone( dCurrent )};
+                
+                windowSoFar = dCurrent.clone();
+
                 while(more nodes need to be added to windowSoFar)
                 {
                     pNextToAdd = the address of the pointer node of the next tree node to be copied;
@@ -249,6 +254,8 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(PackedPointer *pNode, DataNode<
                     copy pNextToAdd and dNextToAdd, and add them to windowSoFar;
                 }
                 // window has been copied; now apply transformations dictated by Tarjan’ algorithm to windowSoFar;
+
+
                 dWindowRoot = // the address of the data node now acting as window root in windowSoFar;
                 if (last/terminal window transaction) {
                     status = COMPLETED;
@@ -269,7 +276,7 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(PackedPointer *pNode, DataNode<
                 dWindowRoot->next = {status, pMoveTo};
 
                 // replace the tree window with the local copy and release the ownership
-                CAS(pNode, {OWNED, dCurrent}, {FREE, dW indowRoot});
+                __sync_bool_compare_and_swap(pNode, {OWNED, dCurrent}, {FREE, dW indowRoot});
             }
         }
 
@@ -341,7 +348,7 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNod
         }
 
         if (opData->state) position = pNode {
-            slideWindowDown( pNode, dNode, pMoveTo, dMoveTo );
+            SlideWindowDown( pNode, dNode, pMoveTo, dMoveTo );
         }
 
         return true;
@@ -352,26 +359,29 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNod
 }
 
 template<class V>
-void ConcurrentTree<V>::SlideWindowDown(PointerNode<V> pMoveFrom, PointerNode<V> dMoveFrom, PointerNode<V> pMoveTo, PointerNode<V> dMoveTo)
+void ConcurrentTree<V>::SlideWindowDown(PointerNode<V> *pMoveFrom, PointerNode<V> *dMoveFrom, PointerNode<V> *pMoveTo, PointerNode<V> *dMoveTo)
 {
-    DataNode opData = dMoveFrom->mOpData;
+    DataNode<V> *opData = dMoveFrom->mOpData;
 
     // copy the data node of the current window location
     dCopyMoveFrom = clone( dMoveFrom );
     dCopyMoveFrom->mOpData = opData;
 
-    if(dMoveTo != null) {
-        dCopyMoveFrom->next = {IN PROGRESS, pMoveTo};
+    if(dMoveTo != nullptr) {
+        pMoveTo->setStatus(Status.IN_PROGRESS);
+        dCopyMoveFrom->next = pMoveTo;
     }
     else {
-        dCopyMoveFrom->next = {COMPLETED, pMoveTo};
+        pMoveTo->setStatus(Status.COMPLETED);
+        dCopyMoveFrom->next = pMoveTo;
     }
 
     // copy the data node of the next window location, if needed
-    if(dMoveTo != null) {
+    if(dMoveTo != nullptr) {
         if(dMoveTo->mOpData != opData) {
-            dCopyMoveTo = clone(dMoveTo);
+            dCopyMoveTo = dMoveTo.clone();
             dCopyMoveTo->mOpData = opData;
+
             // acquire the ownership of the next window location
             CAS( pMoveTo, {FREE, dMoveTo}, {OWNED, dCopyMoveTo} );
         }

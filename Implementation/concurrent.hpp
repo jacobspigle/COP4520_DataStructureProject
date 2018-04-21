@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <climits>
 
-#define PointerNode PackedPointer;
+#define PointerNode PackedPointer
 
 enum Status {WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
 enum Flag {FREE = 0, OWNED = 1};
@@ -46,7 +46,7 @@ public:
     {
         return getTag();
     }
-    
+
     DataNode *getDataNode()
     {
         return mPackedPointer;
@@ -83,9 +83,9 @@ public:
     DataNode *mLeft;
     DataNode *mRight;
 
-    PackedPointer<V, Status> mNext;
+    PackedPointer<V, Status> *mNext;
     
-    //sentinel use only ***
+    // defaults to sentinel values
     DataNode()
     {
         mColor = BLACK;
@@ -93,6 +93,8 @@ public:
         mValData = new ValueRecord(nullptr, 0);
         mLeft = nullptr;
         mRight = nullptr;
+        mOpData = nullptr;
+        mNext = nullptr;
     }
 
     DataNode *clone()
@@ -101,10 +103,8 @@ public:
         copy->mColor = mColor;
         copy->mKey = mKey;
         copy->mValData = mValData;
-        copy->mOpData = mOpData;
         copy->mLeft = mLeft;
         copy->mRight = mRight;
-        copy->mNext = mNext;
         return copy;
     }
 };
