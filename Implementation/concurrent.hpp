@@ -1,5 +1,8 @@
 #include <memory>
 #include <pthread.h>
+#include <climits>
+
+
 
 enum Status {WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
 enum Flag {FREE = 0, OWNED = 1};
@@ -20,6 +23,14 @@ public:
         mPackedPointer = (uint64_t) packedPointer | mask;
     }
 
+    void setTag(U tag)
+    {
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (uint64_t) mPackedPointer & (!mask);
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (uint64_t) mPackedPointer | mask;
+    }
+
     U getTag()
     {
         return (U) ((uint64_t) mPackedPointer >> 62);
@@ -29,10 +40,10 @@ public:
 template <class V>
 class ValueRecord
 {
-    V mValue;
+    V *mValue;
     uint32_t mGate;
 
-    ValueRecord(V value, uint32_t gate)
+    ValueRecord(V *value, uint32_t gate)
     {
         mValue = value;
         mGate = gate;
@@ -57,7 +68,8 @@ public:
     DataNode()
     {
         mColor = BLACK;
-        mValData = new ValueRecord(NULL, 0);
+        mKey = UINT32_MAX;
+        mValData = new ValueRecord(nullptr, 0);
         mLeft = nullptr;
         mRight = nullptr;
     }

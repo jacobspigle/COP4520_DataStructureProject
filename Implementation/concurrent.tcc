@@ -1,11 +1,11 @@
 template <class V>
-V ConcurrentTree<V>::Search(K key)
+V ConcurrentTree<V>::Search(uint32_t key)
 {
     // create and initialize a new operation record
-    DataNode<V> opData = new DataNode<V>(Status.SEARCH, key, nullptr);
+    OperationRecord<V> opData = new OperationRecord<V>(Status.SEARCH, key, nullptr);
 
     // initialize the operation state
-    opData->state = Status.IN_PROGRESS;
+    opData->mState->setTag(Status.IN_PROGRESS);
 
     // initialize the search table entry
     ST[myid].opData = opData;
@@ -13,7 +13,7 @@ V ConcurrentTree<V>::Search(K key)
     // traverse the tree
     Traverse(opData);
 
-    if(opData->state->position == nullptr) {
+    if(opData->state == nullptr) {
         // read the value stored in the record and return it
         return opData->value;
     }
@@ -23,27 +23,27 @@ V ConcurrentTree<V>::Search(K key)
 }
 
 template <class V>
-void ConcurrentTree<V>::InsertOrUpdate(K key, V value)
+void ConcurrentTree<V>::InsertOrUpdate(uint32_t key, V value)
 {
-    V valData = nullptr;
+    V *valData = nullptr;
 
     // phase 1: determine if the key already exists in the tree
     Search(key);
 
-    valData = ST[myid].opData->state->position;
+    valData = ST[myid].opData->state;
 
     if(valData == nullptr) {
         // phase 2: try to add the key-value pair to the tree using the MTL-framework
         // select a search operation to help at the end of phase 2 to ensure wait freedom
         uint32_t pid = select(); // the process selected to help in round-robin manner
-        pidOpData = ST[pid].opData;
+        OperationRecord<V> pidOpData = ST[pid].opData;
 
         // create and initialize a new operation record
-        opData = new DataNode<V>(Status.INSERT, key, value);
+        OperationRecord<V> opData = new OperationRecord<V>(Status.INSERT, key, value);
 
         // add the key-value pair to the tree
         ExecuteOperation(opData);
-        valData = opData->state->position;
+        valData = opData->state;
 
         // help the selected search operation complete
         if(pidOpData != nullptr) {
@@ -58,17 +58,17 @@ void ConcurrentTree<V>::InsertOrUpdate(K key, V value)
 }
 
 template <class V>
-void ConcurrentTree<V>::Delete(K key)
+void ConcurrentTree<V>::Delete(uint32_t key)
 {
     // phase 1: determine if the key already exists in the tree
     if(Search(key)) {
         // phase 2: try to delete the key from the tree using the MTL-framework
         // select a search operation to help at the end of phase 2 to ensure wait-freedom
         uint32_t pid = Select(); // the process selected to help in a round-robin manner
-        DataNode<V> pidOpData = ST[pid].opData;
+        OperationRecord<V> pidOpData = ST[pid].opData;
 
         // create and initialize a new operation record
-        DataNode<V> opData = new DataNode<V>(Status.DELETE, key, nullptr);
+        OperationRecord<V> opData = new OperationRecord<V>(Status.DELETE, key, nullptr);
 
         //remove the key from the tree
         ExecuteOperation(opData);
@@ -81,7 +81,7 @@ void ConcurrentTree<V>::Delete(K key)
 }
 
 template <class V>
-void ConcurrentTree<V>::Traverse(DataNode<V> opData)
+void ConcurrentTree<V>::Traverse(OperationRecord<V> opData)
 {
     // start from the root of the tree
     DataNode<V> dCurrent = pRoot;
@@ -89,7 +89,7 @@ void ConcurrentTree<V>::Traverse(DataNode<V> opData)
     while(dCurrent->left || dCurrent->right)
     {
         // abort the traversal if no longer needed
-        if(opData->state->status == Status.Completed) {
+        if(opData->state->getTag() == Status.Completed) {
             return;
         }
 
@@ -102,7 +102,7 @@ void ConcurrentTree<V>::Traverse(DataNode<V> opData)
         }
     }
 
-    V valData;
+    ValueRecord<V> *valData;
 
     if(dCurrent->key = opData->key) {
         valData = dCurrent->valData;
@@ -111,40 +111,40 @@ void ConcurrentTree<V>::Traverse(DataNode<V> opData)
         valData = nullptr;
     }
 
-    opData->state = COMPLETED;
+    opData->state->setTag(Status.COMPLETED);
     opData->value = valData;
 }
 
 template <class V>
-void ConcurrentTree<V>::ExecuteOperation(DataNode<V> opData)
+void ConcurrentTree<V>::ExecuteOperation(OperationRecord<V> opData)
 {
     // initialize the operation state
-    opData->state = Status.WAITING;
+    opData->state->setTag(Status.WAITING);
 
     // initialize the modify table entry
     MT[myid].opData = opData;
 
     // select a modify operation to help later at the end to ensure wait-freedom
     pid = the process selected to help in round-robin manner;
-    pidOpData = MT[pid].opData;
+    OperationRecord<V> *pidOpData = MT[pid].opData;
 
     // inject the operation into the tree
     injectOperation(opData);
 
     // repeatedly execute transactions until the operation completes
-    pCurrent->status = opData->state;
-    while(pCurrent->status != Status.COMPLETED)
+    PackedPointer *pCurrent = opData->mState;
+    while(pCurrent->getTag() != Status.COMPLETED)
     {
-        dCurrent = pCurrent dNode;
+        DataNode<V> *dCurrent = *pCurrent;
 
-        if(dCurrent->opData == opData) {
+        if(dCurrent->mOpData == opData) {
             ExecuteWindowTransaction(pCurrent, dCurrent);
         }
 
-        pCurrent->status = opData->state;
+        pCurrent = opData->state;
     }
 
-    if(OpData->pid != null) {
+    if(opData->pid != null) {
         // help inject the selected operation
         injectOperation(pidOpData);
     }
@@ -187,7 +187,7 @@ void ConcurrentTree<V>::InjectOperation(DataNode<V> opData)
 
 
 template<class V>
-void ConcurrentTree<V>::ExecuteWindowTransaction(DataNode<V> pNode, DataNode<K,V> dNode)
+void ConcurrentTree<V>::ExecuteWindowTransaction(DataNode<V> pNode, DataNode<uint32_t,V> dNode)
 {
     // execute a window transaction for the operation stored in dNode
     DataNode<V> opData = dNode->opData;
