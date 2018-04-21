@@ -149,7 +149,7 @@ void ConcurrentTree<V>::ExecuteOperation(ConcurrentTree<V> tree, OperationRecord
     PackedPointer *pCurrent = opData->mState;
     while(pCurrent->getTag() != Status.COMPLETED)
     {
-        DataNode<V> *dCurrent = *pCurrent;
+        DataNode<V> *dCurrent = pCurrent->getDataNode();
 
         if(dCurrent->mOpData == opData) {
             ExecuteWindowTransaction(pCurrent, dCurrent);
@@ -214,7 +214,7 @@ void ConcurrentTree<V>::InjectOperation(ConcurrentTree<V> tree, OperationRecord<
 
 
 template<class V>
-void ConcurrentTree<V>::ExecuteWindowTransaction(PackedPointer *pNode, DataNode<V> *dNode)
+void ConcurrentTree<V>::ExecuteWindowTransaction(PointerNode<V> *pNode, DataNode<V> *dNode)
 {
     // execute a window transaction for the operation stored in dNode
     OperationRecord<V> *opData = dNode->mOpData;
@@ -291,35 +291,36 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(PackedPointer *pNode, DataNode<
 }
 
 template<class V>
-bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNode<V> dNode)
+bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(PointerNode<V> *pNode, DataNode<V> *dNode)
 {
-    DataNode opData = dNode->opDate;
-    uint32_t pid = opData->pid;
+    OperationRecord<V> opData = dNode->mOpData;
+    uint32_t pid = opData->mPid;
 
     // traverse the tree window using Tarjan’s algorithm
+
     while(true)
     {
-        DataNode<V> *pNextToVisit = // the address of the pointer node of the next tree node to be visited;
-        DataNode<V> *dNextToVisit = // pNextToVisit dNode;
+        PointerNode<V> *pNextToVisit = dNode->mNext; // the address of the pointer node of the next tree node to be visited;
+        DataNode<V> *dNextToVisit = pNextToVisit->getDataNode(); // pNextToVisit dNode;
 
-        if ((opData->state)->position = pNode) {
+        if (opData->mState->getPointerNode() == pNode->getPointerNode()) {
             return true; // abort; transaction already executed
         }
         // if there is an operation residing at the node, then help it move out of the way
-        if (dNextToVisit->mOpData != null) {
+        if (dNextToVisit->mOpData != nullptr) {
             // there are several cases to consider
-            if ((dNextToVisit->mOpData)->pid != pid) {
+            if (dNextToVisit->mOpData->mPid != pid) {
                 // the operation residing at the node belongs to a different process
                 ExecuteWindowTransaction(pNextToVisit, dNextToVisit);
                 // read the address of the data node again as it may have changed
-                dNextToV isit = pNextToV isit dNode;
-                if ((opData->state) position != pNode) {
+                dNextToVisit = pNextToVisit->getDataNode();
+                if (opData->mState->getPointerNode() != pNode->getPointerNode()) {
                     return true; // abort; transaction already executed
                 }
             }
-            else if (dNextToV isit->mOpData = dNode->mOpData) {
+            else if (dNextToVisit->mOpData == dNode->mOpData) {
                 // partial window transaction has already been executed; complete it if needed
-                if ((opData->state) position = pNode) {
+                if (opData->mState->getPointerNode() == pNode->getPointerNode()) {
                     SlideWindowDown(pNode, dNode, pNextToVisit, dNextToVisit);
                 }
                 return true;
@@ -348,7 +349,7 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNod
         }
 
         if (opData->state) position = pNode {
-            SlideWindowDown( pNode, dNode, pMoveTo, dMoveTo );
+            SlideWindowDown(pNode, dNode, pMoveTo, dMoveTo);
         }
 
         return true;
@@ -359,7 +360,7 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNod
 }
 
 template<class V>
-void ConcurrentTree<V>::SlideWindowDown(PointerNode<V> *pMoveFrom, PointerNode<V> *dMoveFrom, PointerNode<V> *pMoveTo, PointerNode<V> *dMoveTo)
+void ConcurrentTree<V>::SlideWindowDown(PointerNode<V> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<V> *pMoveTo, DataNode<V> *dMoveTo)
 {
     DataNode<V> *opData = dMoveFrom->mOpData;
 

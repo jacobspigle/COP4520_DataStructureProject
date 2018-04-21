@@ -47,14 +47,22 @@ public:
         return getTag();
     }
 
+    T *getPointer()
+    {
+        uint64_t remove_tag = (uint64_t) 0b11 << 62;
+        T *pointer = mPackedPointer;
+        pointer = (uint64_t) pointer & remove_tag;
+        return pointer;
+    }
+
     DataNode *getDataNode()
     {
-        return mPackedPointer;
+        return getPointer();
     }
 
     PointerNode *getPointerNode()
     {
-        return mPackedPointer;
+        return getPointer();
     }
 };
 
@@ -158,9 +166,9 @@ public:
     void Traverse(OperationRecord<V> *opData);
     void ExecuteOperation(OperationRecord<V> *opData);
     void InjectOperation(OperationRecord<V> *opData);
-    void ExecuteWindowTransaction(PackedPointer *pNode, DataNode<V> *dNode);
-    bool ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNode<V> dNode);
-    void SlideWindowDown(PointerNode<V> pMoveFrom, PointerNode<V> dMoveFrom, PointerNode<V> pMoveTo, PointerNode<V> dMoveTo);
+    void ExecuteWindowTransaction(PointerNode<V> *pNode, DataNode<V> *dNode);
+    bool ExecuteCheapWindowTransaction(PointerNode<V> *pNode, DataNode<V> *dNode);
+    void SlideWindowDown(PointerNode<V> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<V> *pMoveTo, DataNode<V> *dMoveTo);
 };
 
 #include "concurrent.tcc"
