@@ -8,6 +8,7 @@ enum Status {WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
 enum Flag {FREE = 0, OWNED = 1};
 enum Type {SEARCH, INSERT, UPDATE, DELETE};
 enum Color {RED, BLACK, UNCOLORED};
+enum Gate {FUCK};
 
 template <class T, class U>
 class PackedPointer
@@ -109,14 +110,30 @@ template <class V>
 class ConcurrentTree
 {
 public:
-    ConcurrentTree() {};
-    V Search(K key);
-    void InsertOrUpdate(K key, V value);
-    void Delete(K key);
-    void Traverse(DataNode<V> opData);
-    void ExecuteOperation(DataNode<V> opData);
-    void InjectOperation(DataNode<V> opData);
-    void ExecuteWindowTransaction(DataNode<V> pNode, DataNode<K,V> dNode);
+    PackedPointer *pRoot;
+    OperationRecord *ST[], *MT[];
+
+    ConcurrentTree(int numThreads)
+    {
+        pRoot = new PackedPointer(Flag.FREE, new DataNode<V>());
+
+        ST = (OperationRecord**) malloc (sizeof(OperationRecord*) * numThreads);
+        MT = (OperationRecord**) malloc (sizeof(OperationRecord*) * numThreads);
+        for (int i = 0; i < numThreads; i++)
+        {
+            ST[i] = nullptr;
+            MT[i] = nullptr;
+        }
+    }
+
+    V* Search(uint32_t key);
+    void InsertOrUpdate(uint32_t key, V value);
+    void Delete(uint32_t key);
+    uint32_t Select(ConcurrentTree<V> *Tree);
+    void Traverse(OperationRecord<V> *opData);
+    void ExecuteOperation(OperationRecord<V> *opData);
+    void InjectOperation(OperationRecord<V> *opData);
+    void ExecuteWindowTransaction(PackedPointer *pNode, DataNode<V> *dNode);
     bool ExecuteCheapWindowTransaction(DataNode<V> pNode, DataNode<V> dNode);
     void SlideWindowDown(PointerNode<V> pMoveFrom, PointerNode<V> dMoveFrom, PointerNode<V> pMoveTo, PointerNode<V> dMoveTo);
 };
