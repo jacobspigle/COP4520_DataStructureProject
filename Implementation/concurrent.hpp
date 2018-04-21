@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <climits>
 
-
+#define PointerNode PackedPointer;
 
 enum Status {WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
 enum Flag {FREE = 0, OWNED = 1};
@@ -14,7 +14,7 @@ template <class T, class U>
 class PackedPointer
 {
 public: 
-    T* mPackedPointer;
+    T *mPackedPointer;
 
     PackedPointer(U tag, T* packedPointer)
     {
@@ -35,6 +35,26 @@ public:
     U getTag()
     {
         return (U) ((uint64_t) mPackedPointer >> 62);
+    }
+
+    Status getStatus()
+    {
+        return getTag();
+    }
+
+    Flag getFlag()
+    {
+        return getTag();
+    }
+    
+    DataNode *getDataNode()
+    {
+        return mPackedPointer;
+    }
+
+    PointerNode *getPointerNode()
+    {
+        return mPackedPointer;
     }
 };
 
@@ -112,9 +132,14 @@ class ConcurrentTree
 public:
     PackedPointer *pRoot;
     OperationRecord *ST[], *MT[];
+    uint32_t mNumThreads;
+    uint32_t mIndex;
 
     ConcurrentTree(int numThreads)
     {
+        mIndex = 0;
+        mNumThreads = numThreads;
+
         pRoot = new PackedPointer(Flag.FREE, new DataNode<V>());
 
         ST = (OperationRecord**) malloc (sizeof(OperationRecord*) * numThreads);
