@@ -4,15 +4,13 @@
 
 #define PointerNode PackedPointer
 #define NextNode PackedPointer
+#define StateNode PackedPointer
 
 enum Status {WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
 enum Flag {FREE = 0, OWNED = 1};
 enum Type {SEARCH, INSERT, UPDATE, DELETE};
 enum Color {RED, BLACK, UNCOLORED};
-enum Gate {FUCK};
-
-template <class V>
-union Position {PointerNode<V> *windowLocation, ValueRecord<V> *valueRecord};
+enum Gate {VALUE};
 
 template <class T, class U>
 class PackedPointer
@@ -33,17 +31,17 @@ public:
     PackedPointer(T* packedPointer, U tag)
     {
         uint64_t mask = (uint64_t) 0b11 << 62;
-        mPackedPointer = (uint64_t) packedPointer & (!mask);
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (!mask));
         mask = (uint64_t) tag << 62;
-        mPackedPointer = (uint64_t) packedPointer | mask;
+        mPackedPointer = (T*)((uint64_t) packedPointer | mask);
     }
 
     void setTag(U tag)
     {
         uint64_t mask = (uint64_t) 0b11 << 62;
-        mPackedPointer = (uint64_t) mPackedPointer & (!mask);
+        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (!mask));
         mask = (uint64_t) tag << 62;
-        mPackedPointer = (uint64_t) mPackedPointer | mask;
+        mPackedPointer = (T*)((uint64_t) mPackedPointer | mask);
     }
 
     U getTag()
@@ -61,7 +59,7 @@ public:
         return getTag();
     }
 
-    T *getPointer()
+    T* getPointer()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
         T *pointer = mPackedPointer;
@@ -69,17 +67,17 @@ public:
         return pointer;
     }
 
-    DataNode<V> *getDataNode()
+    T* getDataNode()
     {
         return getPointer();
     }
 
-    PointerNode<V> *getPointerNode()
+    T* getPointerNode()
     {
         return getPointer();
     }
 
-    Position<V> *getPosition()
+    T* getPosition()
     {
         return getPointer();
     }
@@ -88,6 +86,7 @@ public:
 template <class V>
 class ValueRecord
 {
+public:
     V *mValue;
     uint32_t mGate;
 
@@ -95,6 +94,28 @@ class ValueRecord
     {
         mValue = value;
         mGate = gate;
+    }
+};
+
+template <class V, class U>
+union Position {PointerNode<V, U> *windowLocation; ValueRecord<V> *valueRecord;};
+
+template <class V>
+class OperationRecord
+{
+public:
+    Type mType;
+    uint32_t mKey;
+    uint32_t mPid;
+    V *mValue;
+    StateNode<Position<V, Flag>, Status> *mState;
+
+    OperationRecord(Type type, uint32_t key, V *value)
+    {
+        mType = type;
+        mKey = key;
+        mValue = value;
+        mPid = -1;
     }
 };
 
@@ -107,17 +128,17 @@ public:
     ValueRecord<V> *mValData;
     OperationRecord<V> *mOpData;
 
-    PointerNode<V> *mLeft;
-    PointerNode<V> *mRight;
+    PointerNode<V, Flag> *mLeft;
+    PointerNode<V, Flag> *mRight;
 
-    PackedPointer<V, Status> *mNext;
+    PackedPointer<PointerNode<V, Flag>, Status> *mNext;
     
     // defaults to sentinel values
     DataNode()
     {
         mColor = BLACK;
         mKey = UINT32_MAX;
-        mValData = new ValueRecord(nullptr, 0);
+        mValData = new ValueRecord<V>(nullptr, 0);
         mLeft = nullptr;
         mRight = nullptr;
         mOpData = nullptr;
@@ -137,28 +158,11 @@ public:
 };
 
 template <class V>
-class OperationRecord
-{
-    Type mType;
-    uint32_t mKey;
-    uint32_t mPid;
-    V *mValue;
-    PackedPointer<Position<V>, Status> *mState;
-
-    OperationRecord(Type type, uint32_t key, V *value)
-    {
-        mType = type;
-        mKey = key;
-        mValue = value;
-    }
-};
-
-template <class V>
 class ConcurrentTree
 {
 public:
-    PackedPointer *pRoot;
-    OperationRecord *ST[], *MT[];
+    PackedPointer<DataNode<V>, Flag> *pRoot;
+    OperationRecord<V> **ST, **MT;
     uint32_t mNumThreads;
     uint32_t mIndex;
 
@@ -167,10 +171,10 @@ public:
         mIndex = 0;
         mNumThreads = numThreads;
 
-        pRoot = new PackedPointer(Flag.FREE, new DataNode<V>());
+        pRoot = new PackedPointer<DataNode<V>, Flag>(new DataNode<V>(), Flag::FREE);
 
-        ST = (OperationRecord**) malloc (sizeof(OperationRecord*) * numThreads);
-        MT = (OperationRecord**) malloc (sizeof(OperationRecord*) * numThreads);
+        ST = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
+        MT = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
         for (int i = 0; i < numThreads; i++)
         {
             ST[i] = nullptr;
@@ -178,16 +182,16 @@ public:
         }
     }
 
-    V* Search(uint32_t key);
-    void InsertOrUpdate(uint32_t key, V value);
+    V* Search(uint32_t key, int myid);
+    void InsertOrUpdate(uint32_t key, V *value, int myid);
     void Delete(uint32_t key);
-    uint32_t Select(ConcurrentTree<V> *Tree);
+    uint32_t Select();
     void Traverse(OperationRecord<V> *opData);
-    void ExecuteOperation(OperationRecord<V> *opData);
+    void ExecuteOperation(OperationRecord<V> *opData, int myid);
     void InjectOperation(OperationRecord<V> *opData);
-    void ExecuteWindowTransaction(PointerNode<V> *pNode, DataNode<V> *dNode);
-    bool ExecuteCheapWindowTransaction(PointerNode<V> *pNode, DataNode<V> *dNode);
-    void SlideWindowDown(PointerNode<V> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<V> *pMoveTo, DataNode<V> *dMoveTo);
+    void ExecuteWindowTransaction(PointerNode<V, Flag> *pNode, DataNode<V> *dNode);
+    bool ExecuteCheapWindowTransaction(PointerNode<V, Flag> *pNode, DataNode<V> *dNode);
+    void SlideWindowDown(PointerNode<V, Flag> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<V, Flag> *pMoveTo, DataNode<V> *dMoveTo);
 };
 
 #include "concurrent.tcc"

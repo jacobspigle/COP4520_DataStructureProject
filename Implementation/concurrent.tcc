@@ -1,11 +1,11 @@
 template <class V>
-V ConcurrentTree<V>::Search(uint32_t key)
+V* ConcurrentTree<V>::Search(uint32_t key, int myid)
 {
     // create and initialize a new operation record
-    OperationRecord<V> opData = new OperationRecord<V>(Status.SEARCH, key, nullptr);
+    OperationRecord<V> *opData = new OperationRecord<V>(Type::SEARCH, key, nullptr);
 
     // initialize the operation state
-    opData->mState->setTag(Status.IN_PROGRESS);
+    opData->mState->setTag(Status::IN_PROGRESS);
 
     // initialize the search table entry
     ST[myid] = opData;
@@ -23,26 +23,26 @@ V ConcurrentTree<V>::Search(uint32_t key)
 }
 
 template <class V>
-void ConcurrentTree<V>::InsertOrUpdate(ConcurrentTree<V> *tree, uint32_t key, V value)
+void ConcurrentTree<V>::InsertOrUpdate(uint32_t key, V *value, int myid)
 {
-    V *valData = nullptr;
+    StateNode<Position<V, Flag>, Status> *valData = nullptr;
 
     // phase 1: determine if the key already exists in the tree
-    Search(key);
+    Search(key, myid);
 
-    valData = tree->ST[myid]->mState;
+    valData = this->ST[myid]->mState;
 
     if(valData == nullptr) {
         // phase 2: try to add the key-value pair to the tree using the MTL-framework
         // select a search operation to help at the end of phase 2 to ensure wait freedom
         uint32_t pid = Select(); // the process selected to help in round-robin manner
-        OperationRecord<V> *pidOpData = tree->ST[pid];
+        OperationRecord<V> *pidOpData = this->ST[pid];
 
         // create and initialize a new operation record
-        OperationRecord<V> *opData = new OperationRecord<V>(Status.INSERT, key, value);
+        OperationRecord<V> *opData = new OperationRecord<V>(Type::INSERT, key, value);
 
         // add the key-value pair to the tree
-        ExecuteOperation(opData);
+        ExecuteOperation(opData, myid);
         valData = opData->mState;
 
         // help the selected search operation complete
@@ -71,7 +71,7 @@ void ConcurrentTree<V>::Delete(uint32_t key)
         OperationRecord<V> pidOpData = ST[pid];
 
         // create and initialize a new operation record
-        OperationRecord<V> opData = new OperationRecord<V>(Status.DELETE, key, nullptr);
+        OperationRecord<V> opData = new OperationRecord<V>(Type::DELETE, key, nullptr);
 
         //remove the key from the tree
         ExecuteOperation(opData);
@@ -84,10 +84,10 @@ void ConcurrentTree<V>::Delete(uint32_t key)
 }
 
 template <class V>
-void ConcurrentTree<V>::Select(ConcurrentTree<V> *Tree)
+uint32_t ConcurrentTree<V>::Select()
 {
-    uint32_t fetched_pid = Tree->mIndex;
-    Tree->mIndex = (Tree->mIndex + 1) % Tree->mNumThreads;
+    uint32_t fetched_pid = this->mIndex;
+    this->mIndex = (this->mIndex + 1) % this->mNumThreads;
     return fetched_pid;
 }
 
@@ -101,7 +101,7 @@ void ConcurrentTree<V>::Traverse(OperationRecord<V> *opData)
     while(dCurrent->mLeft != nullptr || dCurrent->mRight != nullptr)
     {
         // abort the traversal if no longer needed
-        if(opData->mState->getTag() == Status.Completed) {
+        if(opData->mState->getTag() == Status::COMPLETED) {
             return;
         }
 
@@ -117,7 +117,7 @@ void ConcurrentTree<V>::Traverse(OperationRecord<V> *opData)
     // leafy stuff
     ValueRecord<V> *valData;
 
-    if(dCurrent->mKey = opData->mKey) {
+    if(dCurrent->mKey == opData->mKey) {
         valData = dCurrent->mValData;
     }
     else {
@@ -125,29 +125,29 @@ void ConcurrentTree<V>::Traverse(OperationRecord<V> *opData)
     }
 
     opData->mState = valData;
-    opData->mState->setTag(Status.COMPLETED);
+    opData->mState->setStatus(Status::COMPLETED);
 }
 
 template <class V>
-void ConcurrentTree<V>::ExecuteOperation(ConcurrentTree<V> tree, OperationRecord<V> *opData)
+void ConcurrentTree<V>::ExecuteOperation(OperationRecord<V> *opData, int myid)
 {
     // initialize the operation state
-    opData->mState->setTag(Status.WAITING);
+    opData->mState->setStatus(Status::WAITING);
 
     // initialize the modify table entry
     MT[myid] = opData;
 
     // select a modify operation to help later at the end to ensure wait-freedom
-    uint32_t pid = tree->Select(); // the process selected to help in round-robin manner;
+    uint32_t pid = this->Select(); // the process selected to help in round-robin manner;
 
     OperationRecord<V> *pidOpData = MT[pid];
 
     // inject the operation into the tree
-    tree->InjectOperation(opData);
+    this->InjectOperation(opData);
 
     // repeatedly execute transactions until the operation completes
-    PackedPointer *pCurrent = opData->mState;
-    while(pCurrent->getTag() != Status.COMPLETED)
+    PointerNode<Position<V, Flag>, Status> *pCurrent = opData->mState;
+    while(pCurrent->getTag() != Status::COMPLETED)
     {
         DataNode<V> *dCurrent = pCurrent->getDataNode();
 
@@ -158,27 +158,27 @@ void ConcurrentTree<V>::ExecuteOperation(ConcurrentTree<V> tree, OperationRecord
         pCurrent = opData->mState;
     }
 
-    if(opData->mPid != null) {
+    if(opData->mPid != -1) {
         // help inject the selected operation
         InjectOperation(pidOpData);
     }
 }
 
 template <class V>
-void ConcurrentTree<V>::InjectOperation(ConcurrentTree<V> *tree, OperationRecord<V> *opData)
+void ConcurrentTree<V>::InjectOperation(OperationRecord<V> *opData)
 {
     // repeatedly try until the operation is injected into the tree
-    while(opData->state->getTag() == Status.WAITING)
+    while(opData->mState->getTag() == Status::WAITING)
     {
-        DataNode<V> *dRoot = tree->pRoot->getDataNode();
+        DataNode<V> *dRoot = this->pRoot->getDataNode();
 
         // execute a window transaction, if needed
         if(dRoot->mOpData != nullptr) {
-            ExecuteWindowTransaction(tree->pRoot, dRoot);
+            ExecuteWindowTransaction(this->pRoot, dRoot);
         }
 
         // read the address of the data node again
-        DataNode<V> *dNow = tree->pRoot->getDataNode();
+        DataNode<V> *dNow = this->pRoot->getDataNode();
 
         // if they match, then try to inject the operation into the tree,
         // othewise restart
@@ -187,15 +187,15 @@ void ConcurrentTree<V>::InjectOperation(ConcurrentTree<V> *tree, OperationRecord
             DataNode<V> *dCopy = dRoot->clone();
             dCopy->mOpData = opData;
 
-            PointerNode<V> *dRootFree = new PointerNode<V>(dRoot, Flag.FREE);
-            PointerNode<V> *dCopyOwned = new PointerNode<V>(dCopy, Flag.OWNED);
+            PointerNode<V, Flag> *pRootFree = new PointerNode<V, Flag>(dRoot, Flag::FREE);
+            PointerNode<V, Flag> *pCopyOwned = new PointerNode<V, Flag>(dCopy, Flag::OWNED);
 
             // try to obtain the ownership of the root of the tree
-            if(__sync_bool_compare_and_swap(tree->pRoot, dRootFree, dCopyOwned)) {
+            if(__sync_bool_compare_and_swap(this->pRoot, pRootFree, pCopyOwned)) {
                 // the operation has been successfully injected
                 // update the operation state
-                PointerNode<V> *pRootWaiting = new PointerNode<V>(tree->pRoot->getDataNode(), Status.WAITING);
-                PointerNode<V> *pRootInProgress = new PointerNode<V>(tree->pRoot->getDataNode(), Status.IN_PROGRESS);
+                PointerNode<V, Flag> *pRootWaiting = new PointerNode<V, Flag>(this->pRoot->getDataNode(), Status::WAITING);
+                PointerNode<V, Flag> *pRootInProgress = new PointerNode<V, Flag>(this->pRoot->getDataNode(), Status::IN_PROGRESS);
 
                 if(!__sync_bool_compare_and_swap(opData->mState, pRootWaiting->mPackedPointer, pRootInProgress->mPackedPointer)) {
                     free(pRootInProgress);
@@ -204,28 +204,28 @@ void ConcurrentTree<V>::InjectOperation(ConcurrentTree<V> *tree, OperationRecord
                 free(pRootWaiting);
             }
             else {
-                free(dCopyFree);
+                free(pCopyOwned);
             }
 
-            free(dRootFree);
+            free(pRootFree);
         }
     }
 }
 
 
 template<class V>
-void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, PointerNode<V> *pNode, DataNode<V> *dNode)
+void ConcurrentTree<V>::ExecuteWindowTransaction(PointerNode<V, Flag> *pNode, DataNode<V> *dNode)
 {
     // execute a window transaction for the operation stored in dNode
     OperationRecord<V> *opData = dNode->mOpData;
-    PointerNode<V> *pCurrent = pNode; // read the contents of pNode again
-    if (dCurrent->mOpData == opData) {
-        if (pCurrent->getFlag() == Flag.OWNED) {
-            if (pNode->getPointerNode() == tree->pRoot->getPointerNode()) {
+    PointerNode<V, Flag> *pCurrent = pNode; // read the contents of pNode again
+    if (pCurrent->getDataNode()->mOpData == opData) {
+        if (pCurrent->getFlag() == Flag::OWNED) {
+            if (pNode->getPointerNode() == this->pRoot->getPointerNode()) {
                 // the operation may have just been injected into the tree, but the operation
                 // state may not have been updated yet; update the state
-                PointerNode<V> *pRootWaiting = new PointerNode<V>(tree->pRoot->getDataNode(), Status.WAITING);
-                PointerNode<V> *pRootInProgress = new PointerNode<V>(tree->pRoot->getDataNode(), Status.IN_PROGRESS);
+                PointerNode<V, Flag> *pRootWaiting = new PointerNode<V, Flag>(this->pRoot->getDataNode(), Status::WAITING);
+                PointerNode<V, Flag> *pRootInProgress = new PointerNode<V, Flag>(this->pRoot->getDataNode(), Status::IN_PROGRESS);
 
                 if(!__sync_bool_compare_and_swap(opData->state, pRootWaiting->mPackedPointer, pRootInProgress->mPackedPointer)) {
                     free(pRootInProgress);
@@ -235,13 +235,13 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, Pointe
             }
 
 
-            if(ExecuteCheapWindowTransaction(tree, pNode, pCurrent->getDataNode()) == false) {
+            if(ExecuteCheapWindowTransaction(pNode, pCurrent->getDataNode()) == false) {
 
                 // traverse the window using Tarjan’s algorithm, making copies as required
                 
                 DataNode<V> *windowSoFar = pCurrent->getDataNode()->clone();
 
-                PointerNode<V> *pNextToAdd
+                PointerNode<V, Flag> *pNextToAdd;
                 DataNode<V> *dNextToAdd;
 
                 bool leftAcquired = false;
@@ -252,11 +252,11 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, Pointe
                     bool isLeft = false;
 
                     if(!leftAcquired) {
-                        pNextToAdd = pCurrent->mLeft; // the address of the pointer node of the next tree node to be copied;
+                        pNextToAdd = pCurrent->getDataNode()->mLeft; // the address of the pointer node of the next tree node to be copied;
                         isLeft = true;
                     }
                     else if(!rightAcquired) {
-                        pNextToAdd = pCurrent->mRight; // the address of the pointer node of the next tree node to be copied;
+                        pNextToAdd = pCurrent->getDataNode()->mRight; // the address of the pointer node of the next tree node to be copied;
                     }
                     else {
                         break;
@@ -285,11 +285,11 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, Pointe
 
                     // copy pNextToAdd and dNextToAdd, and add them to windowSoFar;
                     if(isLeft) {
-                        windowSoFar->mLeft = new PointerNode<V>(dNextToAdd->clone(), pNextToAdd->getFlag());
+                        windowSoFar->mLeft = new PointerNode<V, Flag>(dNextToAdd->clone(), pNextToAdd->getFlag());
                         leftAcquired = true;
                     }
                     else {
-                        windowSoFar->mRight = new PointerNode<V>(dNextToAdd->clone(), pNextToAdd->getFlag());
+                        windowSoFar->mRight = new PointerNode<V, Flag>(dNextToAdd->clone(), pNextToAdd->getFlag());
                         rightAcquired = true;
                     }
                 }
@@ -302,14 +302,15 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, Pointe
                     // dWindowRoot = the address of the data node now acting as window root in windowSoFar;
                 }
 
-                PointerNode<V> *pMoveTo;
+                PointerNode<V, Flag> *pMoveTo;
+                DataNode<V> *dMoveTo;
 
                 if (windowSoFar->mNext == nullptr/*last/terminal window transaction*/) {
                     opData->mState->setStatus(COMPLETED);
 
                     // the address of the record containing the value : if an update operation;
                     // null : otherwise;
-                    if(opData->mType == Type.UPDATE) {
+                    if(opData->mType == Type::UPDATE) {
                         pMoveTo = opData->mType->mPackedPointer;
                     }
                     else {
@@ -319,23 +320,23 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, Pointe
                 else {
                     opData->mState->setStatus(IN_PROGRESS);
                     pMoveTo = windowSoFar->mNext; // the address of the pointer node of the node in windowSoFar to which the operation will now move;
-                    pMoveTo->setFlag(Flag.OWNED);
+                    pMoveTo->setFlag(Flag::OWNED);
                     dMoveTo = pMoveTo->getDataNode();
                     dMoveTo->mOpData = opData;
                 }
 
                 dWindowRoot->mOpData = opData;
-                dWindowRoot->mNext = new NextNode<V>(pMoveTo->mPackedPointer); // {status, pMoveTo};
+                dWindowRoot->mNext = new NextNode<PointerNode<V, Flag>, Status>(pMoveTo->mPackedPointer); // {status, pMoveTo};
 
                 // replace the tree window with the local copy and release the ownership
-                PointerNode<V> *pCurrentOwned = new PointerNode<V>(dCurrent->mPackedPointer, Flag.OWNED);
-                PointerNode<V> *pWindowRootFree = new PointerNode<V>(dWindowRoot->mPackedPointer, Flag.FREE);
+                PointerNode<V, Flag> *pCurrentOwned = new PointerNode<V, Flag>(pCurrent->getDataNode(), Flag::OWNED);
+                PointerNode<V, Flag> *pWindowRootFree = new PointerNode<V, Flag>(dWindowRoot->mPackedPointer, Flag::FREE);
 
                 if(!__sync_bool_compare_and_swap(pNode, pCurrentOwned->mPackedPointer, pWindowRootFree->mPackedPointer)) {
-                    free(dWindowRootFree);
+                    free(pWindowRootFree);
                 }
 
-                free(dCurrentOwned);
+                free(pCurrentOwned);
             }
         }
 
@@ -344,7 +345,7 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, Pointe
         DataNode<V> *dNow = pNode->getDataNode();
 
         if (dNow->mOpData == opData) {
-            PointerNode<V> *pNodeInProgress = new PointerNode<V>(pNode->mPackedPointer, Status.IN_PROGRESS);
+            StateNode<Position<V, Flag>, Status> *pNodeInProgress = new StateNode<Position<V,Flag>, Status>(pNode->mPackedPointer, Status::IN_PROGRESS);
             if(!__sync_bool_compare_and_swap(opData->mState, pNodeInProgress, dNow->mNext)) {
                 free(pNodeInProgress);
             }
@@ -353,20 +354,20 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, Pointe
 }
 
 template<class V>
-bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, PointerNode<V> *pNode, DataNode<V> *dNode)
+bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(PointerNode<V, Flag> *pNode, DataNode<V> *dNode)
 {
     OperationRecord<V> opData = dNode->mOpData;
     uint32_t pid = opData->mPid;
 
     // traverse the tree window using Tarjan’s algorithm
-    DataNode<V> *dWindow = tree->pRoot->getDataNode().clone();
+    DataNode<V> *dWindow = this->pRoot->getDataNode()->clone();
     while(dWindow->mLeft != nullptr || dWindow->mRight != nullptr)
     {
         if(dWindow->mLeft != nullptr) {
-            dWindow = mLeft->getDataNode();
+            dWindow = dWindow->mLeft->getDataNode();
         }
         else {
-            dWindow = mRight->getDataNode();
+            dWindow = dWindow->mRight->getDataNode();
         }
     }
 
@@ -385,7 +386,7 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
             return false;
         }
 
-        PointerNode<V> *pNextToVisit = dNode->mNext; // the address of the pointer node of the next tree node to be visited;
+        PointerNode<V, Flag> *pNextToVisit = dNode->mNext; // the address of the pointer node of the next tree node to be visited;
         DataNode<V> *dNextToVisit = pNextToVisit->getDataNode(); // pNextToVisit dNode;
 
         if (opData->mState->getPointerNode() == pNode->getPointerNode()) {
@@ -427,11 +428,15 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
 
         // visit dNextToVisit;
     }
-    if (dWindow->mNext == tree->pRoot->getDataNode()) {
+    if (dWindow->mNext == this->pRoot->getDataNode()) {
+
+        PointerNode<V, Flag> *pMoveTo = new PointerNode<V, Flag>();
+        DataNode<V> *dMoveTo = new DataNode<V>();
+
         // if not sentinel
         if (opData->mState->mValue != nullptr) {
-            if(opData->mState->getStatus() == Status.UPDATE) {
-                pMoveTo = tree->pRoot->getDataNode()->mNext;
+            if(opData->mState->getStatus() == Type::UPDATE) {
+                pMoveTo = this->pRoot->getDataNode()->mNext;
             }
             else {
                 pMoveTo = nullptr;
@@ -440,8 +445,8 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
             dMoveTo = nullptr;
         }
         else {
-            pMoveTo = dWindow->mNext // the address of the pointer node of the node in the tree to which the operation will now move;
-            dMoveTo = pMoveTodNode;
+            pMoveTo = dWindow->mNext; // the address of the pointer node of the node in the tree to which the operation will now move;
+            dMoveTo = pMoveTo->getDataNode();
         }
 
         if(opData->mState->getPointerNode() == pNode) {
@@ -456,32 +461,32 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
 }
 
 template<class V>
-void ConcurrentTree<V>::SlideWindowDown(PointerNode<V> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<V> *pMoveTo, DataNode<V> *dMoveTo)
+void ConcurrentTree<V>::SlideWindowDown(PointerNode<V, Flag> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<V, Flag> *pMoveTo, DataNode<V> *dMoveTo)
 {
     DataNode<V> *opData = dMoveFrom->mOpData;
 
     // copy the data node of the current window location
-    DataNode<V> *dCopyMoveFrom = dMoveFrom.clone();
+    DataNode<V> *dCopyMoveFrom = dMoveFrom->clone();
     dCopyMoveFrom->mOpData = opData;
 
     if(dMoveTo != nullptr) {
-        pMoveTo->setStatus(Status.IN_PROGRESS);
+        pMoveTo->setStatus(Status::IN_PROGRESS);
         dCopyMoveFrom->mNext = pMoveTo;
     }
     else {
-        pMoveTo->setStatus(Status.COMPLETED);
+        pMoveTo->setStatus(Status::COMPLETED);
         dCopyMoveFrom->mNext = pMoveTo;
     }
 
     // copy the data node of the next window location, if needed
     if(dMoveTo != nullptr) {
         if(dMoveTo->mOpData != opData) {
-            DataNode<V> *dCopyMoveTo = dMoveTo.clone();
+            DataNode<V> *dCopyMoveTo = dMoveTo->clone();
             dCopyMoveTo->mOpData = opData;
 
             // acquire the ownership of the next window location
-            DataNode<V> *pMoveToFree = new DataNode<V>(dMoveTo, Flag.FREE); // {FREE, dMoveTo}
-            DataNode<V> *dCopyMoveToOwned = new DataNode<V>(dCopyMoveTo, Flag.OWNED); // {OWNED, dCopyMoveTo}
+            DataNode<V> *pMoveToFree = new DataNode<V>(dMoveTo, Flag::FREE); // {FREE, dMoveTo}
+            DataNode<V> *dCopyMoveToOwned = new DataNode<V>(dCopyMoveTo, Flag::OWNED); // {OWNED, dCopyMoveTo}
 
             if(!__sync_bool_compare_and_swap(pMoveTo, pMoveToFree->mPackedPointer, dCopyMoveToOwned->mPackedPointer)) {
                 free(dCopyMoveToOwned);
@@ -492,8 +497,8 @@ void ConcurrentTree<V>::SlideWindowDown(PointerNode<V> *pMoveFrom, DataNode<V> *
     }
 
     // release the ownership of the current window location and update the operation state
-    PointerNode<V> *pMoveFromOwned = new PointerNode<V>(dMoveFrom, Flag.OWNED); // {OWNED, dMoveFrom}
-    PointerNode<V> *dCopyMoveFromFree = new PointerNode<V>(dCopyMoveFrom, Flag.FREE); // {FREE, dCopyMoveFrom}
+    PointerNode<V, Flag> *pMoveFromOwned = new PointerNode<V, Flag>(dMoveFrom, Flag::OWNED); // {OWNED, dMoveFrom}
+    PointerNode<V, Flag> *dCopyMoveFromFree = new PointerNode<V, Flag>(dCopyMoveFrom, Flag::FREE); // {FREE, dCopyMoveFrom}
 
     if(!__sync_bool_compare_and_swap(pMoveFrom, pMoveFromOwned, dCopyMoveFromFree)) {
         free(dCopyMoveFromFree);
@@ -501,9 +506,9 @@ void ConcurrentTree<V>::SlideWindowDown(PointerNode<V> *pMoveFrom, DataNode<V> *
 
     free(pMoveFromOwned);
 
-    PointerNode<V> *pMoveFromInProgress = new PointerNove<V>(dMoveFrom, Status.IN_PROGRESS); // {IN PROGRESS, pMoveFrom}
+    PointerNode<V, Flag> *pMoveFromInProgress = new PointerNode<V, Flag>(dMoveFrom, Status::IN_PROGRESS); // {IN PROGRESS, pMoveFrom}
 
-    __sync_bool_compare_and_swap(opData->mState, pMoveFromInProgress->mPackedPointer, dCopyMoveFrom->mNext))
+    __sync_bool_compare_and_swap(opData->mState, pMoveFromInProgress->mPackedPointer, dCopyMoveFrom->mNext);
     
     free(pMoveFromInProgress);
 }
