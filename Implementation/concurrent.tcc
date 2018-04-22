@@ -359,7 +359,7 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
     uint32_t pid = opData->mPid;
 
     // traverse the tree window using Tarjan’s algorithm
-    DataNode<V> *dWindow = tree->pRoot->getDataNode();
+    DataNode<V> *dWindow = tree->pRoot->getDataNode().clone();
     while(dWindow->mLeft != nullptr || dWindow->mRight != nullptr)
     {
         if(dWindow->mLeft != nullptr) {
@@ -370,8 +370,21 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
         }
     }
 
+    bool traverseLeft = false;
+    bool traverseRight = false;
+
     while(true)
     {
+        if(dWindow->mLeft != nullptr) {
+            traverseLeft = true;
+        }
+        else if(dWindow->mRight != nullptr) {
+            traverseRight = true;
+        }
+        else {
+            return false;
+        }
+
         PointerNode<V> *pNextToVisit = dNode->mNext; // the address of the pointer node of the next tree node to be visited;
         DataNode<V> *dNextToVisit = pNextToVisit->getDataNode(); // pNextToVisit dNode;
 
@@ -380,6 +393,15 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
         }
         // if there is an operation residing at the node, then help it move out of the way
         if (dNextToVisit->mOpData != nullptr) {
+            if(traverseLeft) {
+                dWindow = dWindow->mLeft->getDataNode();
+                traverseLeft = false;
+            }
+            else {
+                dWindow = dWindow->mRight->getDataNode();
+                traverseRight = false;
+            }
+
             // there are several cases to consider
             if (dNextToVisit->mOpData->mPid != pid) {
                 // the operation residing at the node belongs to a different process
@@ -405,10 +427,11 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
 
         // visit dNextToVisit;
     }
-    if (no transformation needs to be applied to the tree window) {
-        if (last/terminal window transaction) {
+    if (dWindow->mNext == tree->pRoot->getDataNode()) {
+        // if not sentinel
+        if (opData->mState->mValue != nullptr) {
             if(opData->mState->getStatus() == Status.UPDATE) {
-                pMoveTo = // the address of the record containing the value
+                pMoveTo = tree->pRoot->getDataNode()->mNext;
             }
             else {
                 pMoveTo = nullptr;
@@ -417,11 +440,11 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(ConcurrentTree<V> *tree, P
             dMoveTo = nullptr;
         }
         else {
-            pMoveTo = // the address of the pointer node of the node in the tree to which the operation will now move;
+            pMoveTo = dWindow->mNext // the address of the pointer node of the node in the tree to which the operation will now move;
             dMoveTo = pMoveTodNode;
         }
 
-        if (opData->state) position = pNode {
+        if(opData->mState->getPointerNode() == pNode) {
             SlideWindowDown(pNode, dNode, pMoveTo, dMoveTo);
         }
 
