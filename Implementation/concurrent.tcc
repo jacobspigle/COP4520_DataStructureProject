@@ -107,10 +107,10 @@ void ConcurrentTree<V>::Traverse(OperationRecord<V> *opData)
 
         // find the next node to visit
         if(dCurrent->mLeft && opData->mKey < dCurrent->mKey) {
-            dCurrent = dCurrent->mLeft;
+            dCurrent = dCurrent->mLeft->getDataNode();
         }
         else if(dCurrent->mRight) {
-            dCurrent = dCurrent->mRight;
+            dCurrent = dCurrent->mRight->getDataNode();
         }
     }
 
@@ -132,7 +132,7 @@ template <class V>
 void ConcurrentTree<V>::ExecuteOperation(ConcurrentTree<V> tree, OperationRecord<V> *opData)
 {
     // initialize the operation state
-    opData->state->setTag(Status.WAITING);
+    opData->mState->setTag(Status.WAITING);
 
     // initialize the modify table entry
     MT[myid] = opData;
@@ -214,14 +214,14 @@ void ConcurrentTree<V>::InjectOperation(ConcurrentTree<V> tree, OperationRecord<
 
 
 template<class V>
-void ConcurrentTree<V>::ExecuteWindowTransaction(PointerNode<V> *pNode, DataNode<V> *dNode)
+void ConcurrentTree<V>::ExecuteWindowTransaction(ConcurrentTree<V> *tree, PointerNode<V> *pNode, DataNode<V> *dNode)
 {
     // execute a window transaction for the operation stored in dNode
     OperationRecord<V> *opData = dNode->mOpData;
-    opData->mState = pNode; // read the contents of pNode again
-    if (dCurrent->mOpData = opData) {
-        if (opData->mState->getTag() == Flag.OWNED) {
-            if (pNode == pRoot) {
+    PointerNode<V> *pCurrent = pNode; // read the contents of pNode again
+    if (dCurrent->mOpData == opData) {
+        if (pCurrent->getFlag() == Flag.OWNED) {
+            if (pNode->getPointerNode() == tree->pRoot->getPointerNode()) {
                 // the operation may have just been injected into the tree, but the operation
                 // state may not have been updated yet; update the state
                 PointerNode<V> *pRootWaiting = new PointerNode<V>(tree->pRoot->getDataNode(), Status.WAITING);
@@ -234,58 +234,120 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(PointerNode<V> *pNode, DataNode
                 free(pRootWaiting);
             }
 
-            DataNode<V> windoSoFar;
 
-            if(ExecuteCheapWindowTransaction( pNode, dCurrent ) == false) {
+            if(ExecuteCheapWindowTransaction(pNode, pCurrent->getDataNode()) == false) {
+
                 // traverse the window using Tarjan’s algorithm, making copies as required
                 
-                windowSoFar = dCurrent.clone();
+                DataNode<V> *windowSoFar = pCurrent->getDataNode()->clone();
 
-                while(more nodes need to be added to windowSoFar)
+                PointerNode<V> *pNextToAdd
+                DataNode<V> *dNextToAdd;
+
+                bool leftAcquired = false;
+                bool rightAcquired = false;
+
+                while(true)
                 {
-                    pNextToAdd = the address of the pointer node of the next tree node to be copied;
-                    dNextToAdd = pNextToAdd dNode;
+                    bool isLeft = false;
+
+                    if(!leftAcquired) {
+                        pNextToAdd = pCurrent->mLeft; // the address of the pointer node of the next tree node to be copied;
+                        isLeft = true;
+                    }
+                    else if(!rightAcquired) {
+                        pNextToAdd = pCurrent->mRight; // the address of the pointer node of the next tree node to be copied;
+                    }
+                    else {
+                        break;
+                    }
+
+                    if(pNextToAdd == nullptr) {
+                        if(isLeft) {
+                            leftAcquired = true;
+                        }
+                        else {
+                            rightAcquired = true;
+                        }
+
+                        continue;
+                    }
+
+                    dNextToAdd = pNextToAdd->getDataNode();
+
                     // help the operation located at this node, if any, move out of the way
-                    if (dNextToAdd->mOpData != null) {
+                    if (dNextToAdd->mOpData != nullptr) {
                         ExecuteWindowTransaction(pNextToAdd, dNextToAdd);
                     }
+
                     // read the address of the data node again as it may have changed
-                    dNextToAdd = pNextToAdd dNode;
-                    copy pNextToAdd and dNextToAdd, and add them to windowSoFar;
+                    dNextToAdd = pNextToAdd->getDataNode();
+
+                    // copy pNextToAdd and dNextToAdd, and add them to windowSoFar;
+                    if(isLeft) {
+                        windowSoFar->mLeft = new PointerNode<V>(dNextToAdd->clone(), pNextToAdd->getFlag());
+                        leftAcquired = true;
+                    }
+                    else {
+                        windowSoFar->mRight = new PointerNode<V>(dNextToAdd->clone(), pNextToAdd->getFlag());
+                        rightAcquired = true;
+                    }
                 }
+
+                DataNode<V> *dWindowRoot = windowSoFar;
                 // window has been copied; now apply transformations dictated by Tarjan’ algorithm to windowSoFar;
+                if(!(windowSoFar->mLeft == nullptr && windowSoFar->mRight == nullptr)) {
+                    // rotate
 
+                    // dWindowRoot = the address of the data node now acting as window root in windowSoFar;
+                }
 
-                dWindowRoot = // the address of the data node now acting as window root in windowSoFar;
-                if (last/terminal window transaction) {
-                    status = COMPLETED;
-                    pMoveTo = (
-                    the address of the record containing the value : if an update operation;
-                    null : otherwise;
+                PointerNode<V> *pMoveTo;
+
+                if (windowSoFar->mNext == nullptr/*last/terminal window transaction*/) {
+                    opData->mState->setStatus(COMPLETED);
+
+                    // the address of the record containing the value : if an update operation;
+                    // null : otherwise;
+                    if(opData->mType == Type.UPDATE) {
+                        pMoveTo = opData->mType->mPackedPointer;
+                    }
+                    else {
+                        pMoveTo = nullptr;
                     )
                 }
                 else {
-                    status = IN PROGRESS;
-                    pMoveTo = // the address of the pointer node of the node in windowSoFar to which the operation will now move;
-                    pMoveTo flag = OWNED;
-                    dMoveTo = pMoveTo dNode;
+                    opData->mState->setStatus(IN_PROGRESS);
+                    pMoveTo = windowSoFar->mNext; // the address of the pointer node of the node in windowSoFar to which the operation will now move;
+                    pMoveTo->setFlag(Flag.OWNED);
+                    dMoveTo = pMoveTo->getDataNode();
                     dMoveTo->mOpData = opData;
                 }
 
                 dWindowRoot->mOpData = opData;
-                dWindowRoot->next = {status, pMoveTo};
+                dWindowRoot->mNext = new NextNode<V>(pMoveTo->mPackedPointer); // {status, pMoveTo};
 
                 // replace the tree window with the local copy and release the ownership
-                __sync_bool_compare_and_swap(pNode, {OWNED, dCurrent}, {FREE, dW indowRoot});
+                DataNode<V> *dCurrentOwned = new DataNode<V>(dCurrent->mPackedPointer, Flag.OWNED);
+                DataNode<V> *dWindowRootFree = new DataNode<V>(dWindowRoot->mPackedPointer, Flag.FREE);
+
+                if(!__sync_bool_compare_and_swap(pNode, {OWNED, dCurrent}, {FREE, dWindowRoot})) {
+                    free(dWindowRootFree);
+                }
+
+                free(dCurrentOwned);
             }
         }
 
         // at this point, no operation should own pNode; may still need to update the
         // operation state with the new position of the operation window
-        dNow = pNode dNode;
+        DataNode<V> *dNow = pNode->getDataNode();
 
-        if (dNow->mOpData = opData) {
-            CAS(opData->state, {IN_PROGRESS, pNode}, dNow->next);
+        if (dNow->mOpData == opData) {
+            PointerNode<V> *pNodeInProgress = new PointerNode<V>(pNode->mPackedPointer, Status.IN_PROGRESS);
+            if(!__sync_bool_compare_and_swap(opData->mState, pNodeInProgress, dNow->mNext)) {
+                free(pNodeInProgress);
+            }
         }
     }
 }

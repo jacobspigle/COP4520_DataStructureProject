@@ -3,6 +3,7 @@
 #include <climits>
 
 #define PointerNode PackedPointer
+#define NextNode PackedPointer
 
 enum Status {WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
 enum Flag {FREE = 0, OWNED = 1};
@@ -10,11 +11,24 @@ enum Type {SEARCH, INSERT, UPDATE, DELETE};
 enum Color {RED, BLACK, UNCOLORED};
 enum Gate {FUCK};
 
+template <class V>
+union Position {PointerNode<V> *windowLocation, ValueRecord<V> *valueRecord};
+
 template <class T, class U>
 class PackedPointer
 {
 public: 
     T *mPackedPointer;
+
+    PackedPointer()
+    {
+        mPackedPointer = nullptr;
+    }
+
+    PackedPointer(T* packedPointer)
+    {
+        mPackedPointer = packedPointer;
+    }
 
     PackedPointer(U tag, T* packedPointer)
     {
@@ -55,12 +69,17 @@ public:
         return pointer;
     }
 
-    DataNode *getDataNode()
+    DataNode<V> *getDataNode()
     {
         return getPointer();
     }
 
-    PointerNode *getPointerNode()
+    PointerNode<V> *getPointerNode()
+    {
+        return getPointer();
+    }
+
+    Position<V> *getPosition()
     {
         return getPointer();
     }
@@ -88,8 +107,8 @@ public:
     ValueRecord<V> *mValData;
     OperationRecord<V> *mOpData;
 
-    DataNode *mLeft;
-    DataNode *mRight;
+    PointerNode<V> *mLeft;
+    PointerNode<V> *mRight;
 
     PackedPointer<V, Status> *mNext;
     
@@ -122,11 +141,11 @@ class OperationRecord
 {
     Type mType;
     uint32_t mKey;
-    V mValue;
     uint32_t mPid;
-    PackedPointer<V, Status> mState;
+    V *mValue;
+    PackedPointer<Position<V>, Status> *mState;
 
-    OperationRecord(Type type, uint32_t key, V value)
+    OperationRecord(Type type, uint32_t key, V *value)
     {
         mType = type;
         mKey = key;
