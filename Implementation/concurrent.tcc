@@ -374,6 +374,7 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(PointerNode<V> *pNode, Dat
             if (dNextToVisit->mOpData->mPid != pid) {
                 // the operation residing at the node belongs to a different process
                 ExecuteWindowTransaction(pNextToVisit, dNextToVisit);
+                
                 // read the address of the data node again as it may have changed
                 dNextToVisit = pNextToVisit->getDataNode();
                 if (opData->mState->getPointerNode() != pNode->getPointerNode()) {
