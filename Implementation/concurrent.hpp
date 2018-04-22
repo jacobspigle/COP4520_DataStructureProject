@@ -30,7 +30,7 @@ public:
         mPackedPointer = packedPointer;
     }
 
-    PackedPointer(U tag, T* packedPointer)
+    PackedPointer(T* packedPointer, U tag)
     {
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (uint64_t) packedPointer & (!mask);
