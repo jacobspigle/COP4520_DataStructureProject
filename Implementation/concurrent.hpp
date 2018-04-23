@@ -48,8 +48,8 @@ public:
     StateNode<T, U> *getCleanSelfPointer()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
-        T *pointer = this;
-        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        StateNode<T, U> *pointer = this;
+        pointer = (StateNode<T, U> *) ((uint64_t) pointer & remove_tag);
         return pointer;
     }
 
@@ -121,8 +121,8 @@ public:
     NextNode<T, U> *getCleanSelfPointer()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
-        T *pointer = this;
-        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        NextNode<T, U> *pointer = this;
+        pointer = (NextNode<T, U> *) ((uint64_t) pointer & remove_tag);
         return pointer;
     }
 
@@ -194,8 +194,8 @@ public:
     PointerNode<T, U> *getCleanSelfPointer()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
-        T *pointer = this;
-        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        PointerNode<T, U> *pointer = this;
+        pointer = (PointerNode<T, U> *) ((uint64_t) pointer & remove_tag);
         return pointer;
     }
 
