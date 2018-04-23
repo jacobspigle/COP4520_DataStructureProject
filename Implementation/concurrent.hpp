@@ -12,6 +12,9 @@ enum Type {SEARCH, INSERT, UPDATE, DELETE};
 enum Color {RED, BLACK, UNCOLORED};
 enum Gate {VALUE};
 
+template <class V>
+class DataNode;
+
 template <class T, class U>
 class PackedPointer
 {
@@ -44,6 +47,18 @@ public:
         mPackedPointer = (T*)((uint64_t) mPackedPointer | mask);
     }
 
+    void setPointerAndPreserveTag(T *pointer)
+    {
+        U tag = getTag();
+        mPackedPointer = pointer;
+        setTag(tag);
+    }
+
+    void setStatus(Status status)
+    {
+        setTag(status);
+    }
+
     U getTag()
     {
         return (U) ((uint64_t) mPackedPointer >> 62);
@@ -59,25 +74,25 @@ public:
         return getTag();
     }
 
-    T* getPointer()
+    T *getPointer()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
         T *pointer = mPackedPointer;
-        pointer = (uint64_t) pointer & remove_tag;
+        pointer = (T *) ((uint64_t) pointer & remove_tag);
         return pointer;
     }
 
-    T* getDataNode()
+    T *getDataNode()
     {
         return getPointer();
     }
 
-    T* getPointerNode()
+    T *getPointerNode()
     {
         return getPointer();
     }
 
-    T* getPosition()
+    T *getPosition()
     {
         return getPointer();
     }
@@ -97,8 +112,8 @@ public:
     }
 };
 
-template <class V, class U>
-union Position {PointerNode<V, U> *windowLocation; ValueRecord<V> *valueRecord;};
+template <class V>
+union Position {PointerNode<DataNode<V>, Flag> *windowLocation; ValueRecord<V> *valueRecord;};
 
 template <class V>
 class OperationRecord
@@ -108,7 +123,7 @@ public:
     uint32_t mKey;
     uint32_t mPid;
     V *mValue;
-    StateNode<Position<V, Flag>, Status> *mState;
+    StateNode<Position<V>, Status> *mState;
 
     OperationRecord(Type type, uint32_t key, V *value)
     {
@@ -128,10 +143,10 @@ public:
     ValueRecord<V> *mValData;
     OperationRecord<V> *mOpData;
 
-    PointerNode<V, Flag> *mLeft;
-    PointerNode<V, Flag> *mRight;
+    PointerNode<DataNode<V>, Flag> *mLeft;
+    PointerNode<DataNode<V>, Flag> *mRight;
 
-    PackedPointer<PointerNode<V, Flag>, Status> *mNext;
+    PackedPointer<PointerNode<DataNode<V>, Flag>, Status> *mNext;
     
     // defaults to sentinel values
     DataNode()
@@ -184,14 +199,14 @@ public:
 
     V* Search(uint32_t key, int myid);
     void InsertOrUpdate(uint32_t key, V *value, int myid);
-    void Delete(uint32_t key);
+    void Delete(uint32_t key, int myid);
     uint32_t Select();
     void Traverse(OperationRecord<V> *opData);
     void ExecuteOperation(OperationRecord<V> *opData, int myid);
     void InjectOperation(OperationRecord<V> *opData);
-    void ExecuteWindowTransaction(PointerNode<V, Flag> *pNode, DataNode<V> *dNode);
-    bool ExecuteCheapWindowTransaction(PointerNode<V, Flag> *pNode, DataNode<V> *dNode);
-    void SlideWindowDown(PointerNode<V, Flag> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<V, Flag> *pMoveTo, DataNode<V> *dMoveTo);
+    void ExecuteWindowTransaction(PointerNode<DataNode<V>, Flag> *pNode, DataNode<V> *dNode);
+    bool ExecuteCheapWindowTransaction(PointerNode<DataNode<V>, Flag> *pNode, DataNode<V> *dNode);
+    void SlideWindowDown(PointerNode<DataNode<V>, Flag> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<DataNode<V>, Flag> *pMoveTo, DataNode<V> *dMoveTo);
 };
 
 #include "concurrent.tcc"
