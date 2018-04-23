@@ -7,6 +7,7 @@
 
 % The following packages can be found on http:\\www.ctan.org
 \usepackage{graphics} % for pdf, bitmapped graphics files
+\graphicspath{{images/}}
 \usepackage{epsfig} % for postscript graphics files
 \usepackage{mathptmx} % assumes new font selection scheme installed
 \usepackage{times} % assumes new font selection scheme installed
@@ -14,6 +15,7 @@
 \usepackage{amssymb}  % assumes amsmath package installed
 \usepackage{fixltx2e}
 \usepackage{verbatim}
+\usepackage{listings}
 
 \title{\LARGE \bf
 	Concurrent Wait-Free Red Black Trees
@@ -30,6 +32,7 @@
 	\maketitle
 	\thispagestyle{empty}
 	\pagestyle{empty}
+	\lstset{language=C++, frame=single, basicstyle=\footnotesize\bfseries, breaklines=true}
 	
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -51,49 +54,187 @@
 	 The Concurrent Wait-Free Red Black Tree algorithm that was presented by \cite{c1} is derived from a few other presented algorithms. \cite{c1} presents a conglomeration of these algorithms in their modified state that creates the presented concurrent data structure.
 	 
 	 \subsection*{Tsay \& Li's Wait-Free Framework for Concurrent Tree-Based Data Structures}
-	 Tsay \& Li's \cite{c5} TL-Framework is a construction that can be applied to any tree-based data structure attempting concurrency, provided the hardware supports load-linked, store-conditional and check-valid synchronization primitives. \cite{c5} presents the ability to perform wait-free top-down operations by utilizing 'windows', which are described as ``rooted subtree[s] of [a] tree structure, that is, a small, contiguous piece of the tree'' \cite{c1}. Essentially, as a process progresses through a tree while attempting to perform its' given operation, the process will continuously create copies of each node when utilizing this framework, creating a 'window' accessible only by the local process. We call the current windows of the tree W\textsubscript{G} for window global. W\textsubscript{G} is the only window accessible from the root node of the tree. With a firm grasp on the concept of windows, we dive into the steps that must be taken to perform any operation when utilizing the TL-Framework as described in \cite{c1}:
-	 \subsubsection{Explore-Help-And-Copy}
+	 Tsay \& Li's \cite{c5} TL-Framework is a construction that can be applied to any tree-based data structure attempting concurrency, provided the hardware supports load-linked, store-conditional and check-valid synchronization primitives. \cite{c5} presents the ability to perform wait-free top-down operations by utilizing 'windows', which are described as ``rooted subtree[s] of [a] tree structure, that is, a small, contiguous piece of the tree'' \cite{c1}. Essentially, as a process progresses through a tree while attempting to perform its' given operation, the process will continuously create copies of each node when utilizing this framework. Note that nodes inside the TL-Framework are outlined as dual-structured nodes. This means that a single node is composed of two nodes, a pointer node and a data node. As the process traverses the tree, it will be creating a 'window' accessible only by the local process. This is where operations will be able to perform their steps in what is called a `window transaction', whether it be an insertion, update, or deletion, of a node, and switch the changed window back into the tree afterwards in a single atomic step, by simply changing the address that our pointer node is referencing to the new `root' data node of the W\textsubscript{L} we have modified. We call the current windows of the tree W\textsubscript{G} for window global. W\textsubscript{G} is the only window accessible from the root node of the tree. It is important to say here that \cite{1} found some problems with a practical implementation of the TL-Framework and made a few adjustments to create their own backbone using what they call the MTL-Framework. With a firm grasp on the concept of windows, we dive into the steps that must be taken to perform any operation when utilizing the MTL-Framework as described in \cite{c1}:
+	 \subsubsection{Explore-Help-And-Copy \& Transform-And-Lock}
+	 In these two steps, some process \textit{p} traverses the Red Black Tree using the root node's W\textsubscript{G} and each subsequent windows' global window. As \textit{p} traverses W\textsubscript{G}, it creates its' own localized copy of the window, we entitle its' window local, or W\textsubscript{L}. Our process \textit{p} is the only process able to access W\textsubscript{L}, so we perform window transactions sequentially inside the window, thus modifying the window into what we call W\textsubscript{ML} for window modified local. It is important to note that operations are owned by nodes, not processes. This is important because if some node \textit{X}, traversed to by our process \textit{p}, is owned by some operation ß, our process \textit{p} will then `help' by performing a window transaction in that window on ß's behalf.
+	 \subsubsection{Install}
+	 The install step of performing operations in the TL-Framework are what bring our changes into our W\textsubscript{G} view as well as allow us to continue forward traversing the tree when necessary. Because of the dual nature of our nodes in the TL-Framework, once a window transaction has completed we simply replace the current W\textsubscript{G} with our modified W\textsubscript{ML}. This is done in a single atomic instruction because the only change is where our windows' root pointer node is referencing. Upon success, our W\textsubscript{ML} has now been inserted to the tree and becomes our new W\textsubscript{G}, which is accessible from the root node and visible to all processes. We can note here that the old W\textsubscript{G} is no longer accessible from the root, because it has been switched out, but all the references to those nodes are currently retained. As a side note, this brings us to another feature of the TL-Framework that we are utilizing, the idea of \textit{active} and \textit{passive} nodes. \textit{Active} nodes are nodes that reside in the global window of the tree, while \textit{passive} nodes are nodes that have not been dereferenced but also are not accessible from the root of our tree. This is important because if there is another operation attempting to perform in that window such as search, we must wait until it is safe to dereference the node, else we will incur a segmentation fault. When \textit{p} has inserted W\textsubscript{ML} into the W\textsubscript{G}, it has also updated the operations' ownership from the root of the current window to the root of the next window. Because this happens technically in the W\textsubscript{ML} and \textit{p} is the sole accessor, the position is updated atomically.
+	 \subsubsection{Announce}
+	 Here, \textit{p} updates the operation's new window position by updating the table (MT for modify table for modify operations, ST for search table for a search operation) entry for the process that originally injected the operation. Any process can do this because the operation's new window is now in the global eye and the information to do so is kept in the root node of the current window.
+	 
+	 \subsection{Red Black Trees}	
+	 A red black tree is a specific tree structure and is a type of self-balancing binary search tree. It uses key-value pairs, where the value can be anything and the key is the variable that decides a node's place inside the tree data structure. This allows us to create template classes for the operations and other data structures to use inside our tree, so any datatype can be organized inside the tree as long as the desired structure is kept correct using the necessary key value. A red black tree supports four operations in our implementation, \textit{search, insert, update,} and \textit{delete}. The \textit{search} operation finds the key and returns its' associated value inside the tree. \textit{Insert} adds some key-value pair into the tree if it is not already present, and if it is present then the operation becomes an \textit{update} operation, and updates the inserted key with the new value. \textit{Delete} removes a given key from the red black tree if it is present. It is also important to note that in our implementation we refer to \textit{insert, update,} and \textit{delete} operations as \textit{modify} operations. The reason for this is explained later, but the basic need is to separate \textit{search} from the other available operations in our red black tree.
+	 
+	 \subsection*{Tarjan's Top-Down Operations}
+	 \cite{c1} utilizes \cite{c7} to perform all of its' operations inside the Concurrent Wait-Free Red Black Tree. Tarjan's algorithms for Insertion and Deletion are necessary here because with the introduction of windows, we lose the ability to perform in a bottom-up manner globally across the W\textsubscript{G} space. Tarjan allows the red black tree to work top-down in the global structure, but run window transactions bottom-up in W\textsubscript{L}, because those operations are being run locally. The most important thing to note about Tarjan's work is the idea of an \textit{external} red black tree. In this tree, all the tree's data is accessible in the leaf nodes. Any internal node has a correlating leaf node where the data is stored.
+	 \subsubsection{Insertion}
+	 Inserting into an \textit{external} red black tree performs the following steps. Following the access path (the path from our tree's root to the node that was inserted/deleted) from some current node \textit{X}, we make \textit{X} black if it is red or its' children to black if both are red, and we look out for a few cases:
+	 \begin{itemize}
+	 	\item \textit{(a)} we reach an external node, in which case we create an internal node in its' place, with its' children being the original external node and the incoming inserted node, and push the key of the smallest of the two into the new internal node. Note that this is also how we enforce the idea of the \textit{external} red black tree, because upon insertion into a node's left or right child, the external node itself will also be copied into the internal node created. 
+	 	\item \textit{(b)} we reach a black node with a black child, in which case we replace the current node with its' parent before repeating the internal node creation and population outlined in \textit{(a)}.
+	 	\item \textit{(c)} we encounter four black nodes, each with two red children, in succession. Here we color the last black node red and its' children black, then insert the node into the tree using the general step outlined in \textit{(a)}, before moving upwards inside the window to adjust any imbalances before inserting back into the global window.
+	 \end{itemize}
+ 	\subsubsection{Deletion}
+ 	Deletion in a top-down fashion is similar to our insertion method, with a few key changes. For one, we have to use something called a \textit{short node} definition, so whenever our access path does not have the correct number of black nodes leading to an external node we know that this needs to be adjusted at that root node before pushing back into our global window. For deletion, we make the current node \textit{X} our root, and color the root red if it is black with two black children. Then we traverse down the access path and look for:
+ 	\begin{itemize}
+ 		\item \textit{(a)} an external node, in which case we found our item and we replace the external node's parent with its' sibling. Note that when this step has concluded, if the node we just replaced was black then we have a \textit{short node} situation, so we then traverse up the window, converting each short node's sibling to red and creating a \textit{short node} in the parent. To reconcile this, we perform one of the operations shown in \cite{c7}'s Figure 5.
+ 		\item \textit{(b)} a node that is red, has a red child, or has a red grandchild. Here we replace such a node with our current node \textit{X} before performing the general step outlined in \textit{(a)}.
+ 		\item \textit{(c)} three black nodes with black children as well as black grandchildren in succession. In this case we color the bottom-most node and its' sibling red (making its' parent a \textit{short node}), and follow the steps specific to getting rid of the \textit{short node} condition outlined in \textit{(a)} to get rid of the \textit{short node}. Then we replace our \textit{X} with the bottom-most node and repeat steps in \textit{(a)}.
+ 	\end{itemize}
+	\section{Concurrent Wait-Free Red Black Trees}
+	\cite{c1} presents an algorithm for creating and maintaining a concurrent wait-free red black tree data structure. This section will outline the changes and additions that were necessary to create this algorithm, and later we will expand on our own implementation of the data strucuture.
+	\subsection{Data Structures Used}
+	\cite{c1} utilizes 5 main data structures within their algorithm, outlined below:
+	\begin{itemize}
+		\item \textit{Nodes:} For ``nodes'' we recognize the dual structure that is shown in \cite{c5} (TL-Framework). Nodes here are made up of both pointer nodes and data nodes.
+		\begin{itemize}
+			\item \textit{Pointer Node:} A pointer node is a single word that holds a tag, or \textit{Flag}, that indicates if the node is FREE or OWNED, as well as the address of the data node that it points to.
+			\item \textit{Data Node:} A data node holds all the information relevant to a nodes as it would be in a red black tree. \textit{Color, key, left,} and \textit{right} define a data node and its' position, with \textit{left} and \textit{right} pointing to other data nodes' pointer nodes. Two additional fields are the \textit{valData}, which is utilized to keep an external record of a nodes value, and \textit{opData}, which holds information of the operation that is being performed in the root window expanding from this node. The \textit{next} field indicates the next operation location after this nodes' operation has been completed, and thus it is a single word that holds this operation's progress, \textit{status} (WAITING, IN\_PROGRESS, COMPLETED), as well as \textit{move} which is the address of the next node that holds the next operation.
+		\end{itemize}
+	\item \textit{Value Record:} The value record holds a data node's value external from the tree, because the TL-Framework calls for the copying of nodes, and we need to keep up to date with the value accordingly. It simply holds the actual \textit{value} and a \textit{gate} variable (used for deciding which process' operation will perform an \textit{update} on the value record.
+	\item \textit{Operation Record:} An operation record holds the information necessary for a given process to help another process' injected operation by performing an instruction laid out in this data structure inside the `root' (root of a given window) data node that this operation record spawns from. It holds \textit{type, key, value} for the instruction, the \textit{pid} (process ID) that spawned this operation record, as well as a \textit{state} single word variable that holds the \textit{status} of the operation being performed (WAITING, IN\_PROGRESS, COMPLETED) and the \textit{position} which is the current window in which this operation is being performed. Note that \textit{position} could also be the address of a value record when referring to a \textit{search} or \textit{update} operation.
+	\item \textit{Tables:} \cite{c1} also utilizes two table data structures for keeping track of the \textit{search} and \textit{modify} operations being run and what process they have spawned from. Both the search table (ST) and the modify table (MT) are 2D arrays that hold the opData that was last injected by any process. Both tables have size of NUM\_THREADS and thus allow us to choose which process to help when traversing the red black tree by incrementing through the array in a round robin manner. This will be explained in our implementation later as well.
+	\end{itemize}
 
-\begin{comment}
-	\subsection{Figures and Tables}
+	\subsection{Modified Search Operation}
+	If we utilized the MTL-Framework for each operation we would have every process helping every operation in its' path. There are some cases where this behavior is unnecessary and actually very strange when thinking about it in a concurrent setting. The first thought is our \textit{search} operation. Using MTL, \textit{search} would occupy a node while traversing a window, and other processes that traverse to that node would then be expected to help the search function. If we were to have two search functions attempting to run in the same part of the tree, those search functions would be in conflict with each other.
+	\cite{1} observes that with the new MTL-Framework, a window transaction is atomic because of the compare and swap that occurs on each pointer node that occupies the W\textsubscript{G} space to point to the new modified W\textsubscript{ML}, all in a single atomic step. So our operations will only be able to view all or none of the modifications passed into the global space. Another observation is that because these windows are not pushed back into the global space until all transformations have completed, the resulting red black tree will always show correct and legal. So moving forward, \cite{c1} forgoes the process of helping other operations when performing \textit{search}, and is important because we also can now ignore the copying of nodes during a \textit{search} operation which make the MTL-Framework so expensive. Now the \textit{search} operation can simply traverses the tree unobstructed. It is important to mention that \textit{search} still runs the risk of encountering \textit{passive} nodes in this implementation, but we call these Search-Misses (finds the node, but the node is no longer part of the tree), and utilizing this new \textit{search} is still valuable.
+	\subsection{Modified Modify Operations}
+	The overhead of a modify operation can be very expensive when performing insertion and deletions to the bottom of a tree that potentially have already been run by the time we reach that window. There are a few ways we can reduce the cost of this. \\
+	Because of our new \textit{fast-search} operation, we can perform preemptive checks to the state of the tree before we attempt a \textit{modify} operation. Doing this, our \textit{insert/update} and \textit{delete} operations have phases when they are performed:
+	\begin{itemize}
+		\item \textit{Insert:}
+		\begin{itemize}
+			\item \textit{P1:} \textit{Fast-Search} traverses the tree to see if the key already exists within the tree. Upon finding it, the \textit{insert} operation simply updates the value record that was returned by \textit{search}.
+			\item \textit{P2:} If \textit{fast-search} did not locate the key, \textit{insert} will perform normally and run the expensive MTL-Framework version.
+			\item \textit{P3:} If the \textit{insert} operation locates the key in the tree, it then updates the associated value record using Chuong \textit{et al.}'s wait-free algorithm \cite{c8}. This is possible due to a few modifications to \cite{c*}: all value records share one \textit{announce} array (used for processes to announce their operations to one another), however, each value record holds its' own \textit{gate} variable (used to force processes to agree on the next operation to update this value record). In the modified version, Chuong \textit{et al.}'s algorithm will only help update a value record if it is in direct conflict with its' own update operation. This is possible because the current process would then have to store the address of the record in the \textit{announce} array, and then use the value record's \textit{gate} to decide which operation updates the value record. 
+		\end{itemize}
+		\item \textit{Delete:}
+		\begin{itemize}
+			\item \textit{P1:} \textit{Fast-Search} traverses the tree to see if the key has been deleted from the tree. If it has, then another \textit{delete} operation has already completed and we can stop.
+			\item \textit{P2:} If \textit{fast-search} was able to locate the key, \textit{delete} will perform normality and run the expensive MTL-Framework version.
+		\end{itemize} 
+	\end{itemize}
+	With utilizing \cite{c7}'s top-down operations, we will see the invariants required for balance when traversing the tree and inside certain windows. Because they are already being followed, it is a waste to acquire ownership of the root node of a window, copy the nodes using the MTL-Framework, then obtain ownership of the subsequent window's root node before dropping the previous window's root. Nothing has happened in this instance, and it is called a \textit{trivial transaction}. We are able to skip these transactions entirely by skipping a window and sliding down to the next root by obtaining ownership of it. Note that acquiring the next windows' root is not atomic (an instruction to acquire ownership, another to release ownership), and thus we could encounter an instance where our \textit{fast-search} has been overtaken. This is a problem because in the case that \textit{search} is continuously overtaken, its' key moving farther and farther down the tree for infinity, \textit{search} may never terminate. To ensure that it does, \cite{c1} includes the stipulation that a \textit{modify} operation may have to help a \textit{search} operation complete. It does this by helping each process in a round-robin manner.
 	
-	Positioning Figures and Tables: Place figures and tables at the top and bottom of columns. Avoid placing them in the middle of columns. Large figures and tables may span across both columns. Figure captions should be below the figures; table heads should appear above the tables. Insert figures and tables after they are cited in the text. Use the abbreviation ÒFig. 1, even at the beginning of a sentence.
 	
-	\begin{table}[h]
-		\caption{An Example of a Table}
-		\label{table_example}
-		\begin{center}
-			\begin{tabular}{|c||c|}
-				\hline
-				One & Two\\
-				\hline
-				Three & Four\\
-				\hline
-			\end{tabular}
-		\end{center}
-	\end{table}
 	
-	\begin{figure}[thpb]
-		\centering
-		\framebox{\parbox{3in}{We suggest that you use a text box to insert a graphic (which is ideally a 300 dpi TIFF or EPS file, with all fonts embedded) because, in an document, this method is somewhat more stable than directly inserting a picture.
-		}}
-		%\includegraphics[scale=1.0]{figurefile}
-		\caption{Inductance of oscillation winding on amorphous
-			magnetic core versus DC bias magnetic field}
-		\label{figurelabel}
-	\end{figure}
+\section{Our Re-Implementation}
+Our goal was to recreate the concurrent wait-free red black tree algorithm presented in \cite{c1} using the C++ programming language, while also using the POSIX Threads (pthread.h library) for our our creation \& management of the threads involved. Upon completion of bringing the algorithms presented in \cite{c1} into C++, we then transformed our code to utilize the RSTM library (a software transactional memory library that allows only one change in a critical piece(s) of memory for any \textit{n} threads that currently access that piece of memory's \textit{read}/\textit{write} set). 
+	\subsection{Details of Code}
 
+	\lstinputlisting[firstline=15, lastline=58]{concurrent.hpp}
+	\caption{PackedPointer Data Structure}
 	
-	Figure Labels: Use 8 point Times New Roman for Figure labels. Use words rather than symbols or abbreviations when writing Figure axis labels to avoid confusing the reader. As an example, write the quantity ÒMagnetization, or ÒMagnetization, M, not just ÒM. If including units in the label, present them within parentheses. Do not label axes only with units. In the example, write ÒMagnetization (A/m) or ÒMagnetization {A[m(1)]}, not just ÒA/m. Do not label axes with a ratio of quantities and units. For example, write ÒTemperature (K), not ÒTemperature/K.
-\end{comment}
+	\lstinputlisting[firstline=1, lastline=23]{concurrent.tcc}]
+	
+	\subsection{Changes}
+	
+	\subsection{Obstacles}
+
+\section{Proofs}
+
+	\subsection{Progress Guarantee}
+
+	\subsection{Correctness Condition}
+	
+	\subsection{Synchronization Techniques}
+	
+\section{Experimentation}
+\subsection{Experimental Setup}
+We utilized an Intel 4-core i5 chip running on a 64-bit Linux Ubuntu 16.04 Virtual Machine given 4GB of RAM hosted on a 64-bit Windows 10 operating system for conducting experiments with our transactional data structure. Our implementation was written in C++ and utilizes POSIX threads for thread creation and management as well as an RSTM library for calls to memory and dynamic memory allocation. For each of our experiments we took the following parameters into account:
+\begin{itemize}
+	\item \textit{Number of Operations:} We kept the number of operations run on our red black tree static throughout all of our experimentation, keeping it at 500,000 operations.
+	\item \textit{Distribution of Operations:} We varied the distribution of each of our operations (\textit{search, insert/update,} and \textit{delete}) as such:
+	\begin{itemize}
+		\item \textit{(a) Write Dominant:} In this scenario, we have 50\% of our operations running \textit{insert/update} operations, while 25\% run \textit{delete} operations and the remaining 25\% running our \textit{search} operations.
+		\item \textit{(b) Read Dominant:} In this scenario, we have 50\% of our operations running \textit{search} operations, while 25\% run \textit{insert/update} operations and the remaining 25\% running our \textit{delete} operations.
+		\item \textit{(c) Mixed Workload:} In this scenario, we have an equal 33\% split between our \textit{search, insert/update} and \textit{delete} operations.
+	\end{itemize}
+	\item \textit{Degrees of Contention:} The number of threads in each test phase of our experimentation varied from 1, 2, 4, and 8 threads sharing the same data structure, each running our 500,000 operations.
+\end{itemize}
+
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{WriteDominatedConcurrent.png}
+	}}
+	\caption{(a) Write Dominant | Concurrent}
+	\label{writeDom1}
+\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{WriteDominatedTransactional2.png}
+	}}
+	\caption{(a) Write Dominant | Transactional Operations : 2}
+	\label{writeDom2}
+\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{WriteDominatedTransactional3.png}
+	}}
+	\caption{(a) Write Dominant | Transactional Operations: 3}
+	\label{writeDom3}
+\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{SearchDominatedConcurrent.png}
+	}}
+	\caption{(b) Search Dominant | Concurrent}
+	\label{searchDom1}
+\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{SearchDominatedTransactional2.png}
+	}}
+	\caption{(b) Search Dominant | Transactional Operations : 2}
+	\label{searchDom2}
+\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{SearchDominatedTransactional3.png}
+	}}
+	\caption{(b) Search Dominant | Transactional Operations : 3}
+	\label{searchDom3}
+\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{mixedWorkloadConcurrent.png}
+	}}
+	\caption{(c) Mixed Workload | Concurrent}
+	\label{mixedWork1}
+\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{mixedWorkloadTransactional2.png}
+	}}
+	\caption{(c) Mixed Workload | Transactional Operations : 2}
+	\label{mixedWork2}
+\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\framebox{\parbox{3in}{
+			\includegraphics[scale=.7]{mixedWorkloadTransactional3.png}
+	}}
+	\caption{(c) Mixed Workload | Transactional Operations : 3}
+	\label{mixedWork3}
+\end{figure}
+
+\subsection{Experimental Results}
+
 	\section{CONCLUSIONS}
 	
-	Our presentation of both the concurrent and transactional data structure implementations deriving from \cite{1} demonstrates the linearizibility of the resulting C++ program. Searching in the Red-Black tree using these algorithms will be significantly less expensive due to the lack of helping. Modify operations that are performed in separate windows are able to execute concurrently without loss of correctness at any point because of the single word compare and swap instructions used when swapping out windows during a window transaction. Our implementation of \cite{1}'s presented Wait-Free Memory Reclamation allows for nodes that have been essentially removed from the data structure (passive nodes) and are no longer in danger of being referenced by an operation inside that window may be effectively freed or reallocated accordingly.
+	Our presentation of both the concurrent and transactional data structure implementations deriving from \cite{c1} demonstrates the linearizibility of the resulting C++ program. Searching in the Red-Black tree using these algorithms will be significantly less expensive due to the lack of helping. Modify operations that are performed in separate windows are able to execute concurrently without loss of correctness at any point because of the single word compare and swap instructions used when swapping out windows during a window transaction.
 
 	
 	\section*{APPENDIX}
-	
-	Appendixes should appear before the acknowledgment.
 	
 	\begin{thebibliography}{99}
 		
@@ -103,7 +244,9 @@
 		\bibitem{c4} J. Ma, 2003. 'Lock-Free Insertions on Red-Black Trees. MSc thesis. University of Manitoba.
 		\bibitem{c5} J.J. Tsay \& H.C. Li 1994. 'Lock-Free Concurrent Tree Structures for Multiprocessor Systems'. \textit{Parallel and Distributed Systems, 1994}, 554-549. IEEE.
 		\bibitem{c6} V.J. Marathe, M.F. Spear, C. Heriot, A. Acharya, D. Eisenstat, W.N. Scherer III \& M.L. Scott. 'Lowering the Overhead of Nonblocking Software Transactional Memory'. Computer Science Department, University of Rochester.
-		
+		\bibitem{c7} R.E. Tarjan 1985. 'Efficient Top-Down Updating of Red-Black Trees'. Computer Science Department, Princeton University, Princeton, NJ 08544. 
+		\bibitem{c8} P. Chuong, F. Ellen, \& V. Ramachandran 2010. 'A Universal Construction for Wait-Free Transaction Friendly Data Structures'. In: \textit{Proceedings of the 22nd ACM Symposium on Parallelism in Algorithms and Architectures (SPAA)}. Thira, Santorini, Greece, pp. 335-344.
+				
 	\end{thebibliography}
 	
 	
