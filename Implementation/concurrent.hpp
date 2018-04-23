@@ -2,11 +2,11 @@
 #include <pthread.h>
 #include <climits>
 
-#define PointerNode PackedPointer
-#define NextNode PackedPointer
-#define StateNode PackedPointer
+// #define PointerNode PackedPointer
+// #define NextNode PackedPointer
+// #define StateNode PackedPointer
 
-enum Status {WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
+enum Status {NO_STATUS = -1, WAITING = 0, IN_PROGRESS = 1, COMPLETED = 2};
 enum Flag {FREE = 0, OWNED = 1};
 enum Type {SEARCH, INSERT, UPDATE, DELETE};
 enum Color {RED, BLACK, UNCOLORED};
@@ -15,13 +15,22 @@ enum Gate {VALUE};
 template <class V>
 class DataNode;
 
+template <class V>
+class ValueRecord;
+
 template <class T, class U>
-class PackedPointer
+class PointerNode;
+
+template <class V>
+union Position {PointerNode<DataNode<V>, Flag> *windowLocation; ValueRecord<V> *valueRecord;};
+
+template <class T, class U>
+class StateNode
 {
 public: 
     T *mPackedPointer;
 
-    PackedPointer(T* packedPointer, U tag)
+    StateNode(T *packedPointer, U tag)
     {
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (T*) ((uint64_t) packedPointer & (!mask));
@@ -36,10 +45,10 @@ public:
         setTag(tag);
     }
 
-    T *getPointer()
+    StateNode<T, U> *getCleanSelfPointer()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
-        T *pointer = mPackedPointer;
+        T *pointer = this;
         pointer = (T *) ((uint64_t) pointer & remove_tag);
         return pointer;
     }
@@ -57,12 +66,12 @@ public:
         return (U) ((uint64_t) mPackedPointer >> 62);
     }
 
-    PackedPointer()
+    StateNode()
     {
         mPackedPointer = nullptr;
     }
 
-    PackedPointer(T* packedPointer)
+    StateNode(T* packedPointer)
     {
         mPackedPointer = packedPointer;
     }
@@ -77,24 +86,160 @@ public:
         return getTag();
     }
 
+    void setFlag(Flag flag)
+    {
+        setTag(flag);
+    }
+
     Flag getFlag()
     {
         return getTag();
     }
+};
 
-    T *getDataNode()
+template <class T, class U>
+class NextNode
+{
+public: 
+    T *mPackedPointer;
+
+    NextNode(T *packedPointer, U tag)
     {
-        return getPointer();
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (!mask));
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (T*)((uint64_t) packedPointer | mask);
     }
 
-    T *getPointerNode()
+    void setPointerAndPreserveTag(T *pointer)
     {
-        return getPointer();
+        U tag = getTag();
+        mPackedPointer = pointer;
+        setTag(tag);
     }
 
-    T *getPosition()
+    NextNode<T, U> *getCleanSelfPointer()
     {
-        return getPointer();
+        uint64_t remove_tag = (uint64_t) 0b11 << 62;
+        T *pointer = this;
+        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        return pointer;
+    }
+
+    void setTag(U tag)
+    {
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (!mask));
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (T*)((uint64_t) mPackedPointer | mask);
+    }
+
+    U getTag()
+    {
+        return (U) ((uint64_t) mPackedPointer >> 62);
+    }
+
+    NextNode()
+    {
+        mPackedPointer = nullptr;
+    }
+
+    NextNode(T* packedPointer)
+    {
+        mPackedPointer = packedPointer;
+    }
+
+    void setStatus(Status status)
+    {
+        setTag(status);
+    }
+
+    Status getStatus()
+    {
+        return getTag();
+    }
+
+    void setFlag(Flag flag)
+    {
+        setTag(flag);
+    }
+
+    Flag getFlag()
+    {
+        return getTag();
+    }
+};
+
+template <class T, class U>
+class PointerNode
+{
+public: 
+    T *mPackedPointer;
+
+    PointerNode(T *packedPointer, U tag)
+    {
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (!mask));
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (T*)((uint64_t) packedPointer | mask);
+    }
+
+    void setPointerAndPreserveTag(T *pointer)
+    {
+        U tag = getTag();
+        mPackedPointer = pointer;
+        setTag(tag);
+    }
+
+    PointerNode<T, U> *getCleanSelfPointer()
+    {
+        uint64_t remove_tag = (uint64_t) 0b11 << 62;
+        T *pointer = this;
+        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        return pointer;
+    }
+
+    void setTag(U tag)
+    {
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (!mask));
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (T*)((uint64_t) mPackedPointer | mask);
+    }
+
+    U getTag()
+    {
+        return (U) ((uint64_t) mPackedPointer >> 62);
+    }
+
+    PointerNode()
+    {
+        mPackedPointer = nullptr;
+    }
+
+    PointerNode(T* packedPointer)
+    {
+        mPackedPointer = packedPointer;
+    }
+
+    void setStatus(Status status)
+    {
+        setTag(status);
+    }
+
+    Status getStatus()
+    {
+        return getTag();
+    }
+
+    void setFlag(Flag flag)
+    {
+        setTag(flag);
+    }
+
+    Flag getFlag()
+    {
+        return getTag();
     }
 };
 
@@ -111,9 +256,6 @@ public:
         mGate = gate;
     }
 };
-
-template <class V>
-union Position {PointerNode<DataNode<V>, Flag> *windowLocation; ValueRecord<V> *valueRecord;};
 
 template <class V>
 class OperationRecord
@@ -146,7 +288,7 @@ public:
     PointerNode<DataNode<V>, Flag> *mLeft;
     PointerNode<DataNode<V>, Flag> *mRight;
 
-    PackedPointer<PointerNode<DataNode<V>, Flag>, Status> *mNext;
+    NextNode<Position<V>, Status> *mNext;
     
     // defaults to sentinel values
     DataNode()
@@ -176,7 +318,7 @@ template <class V>
 class ConcurrentTree
 {
 public:
-    PackedPointer<DataNode<V>, Flag> *pRoot;
+    PointerNode<DataNode<V>, Flag> *pRoot;
     OperationRecord<V> **ST, **MT;
     uint32_t mNumThreads;
     uint32_t mIndex;
@@ -186,7 +328,8 @@ public:
         mIndex = 0;
         mNumThreads = numThreads;
 
-        pRoot = new PackedPointer<DataNode<V>, Flag>(new DataNode<V>(), Flag::FREE);
+        // initialize pRoot with sentinel-valued DataNode
+        auto pRoot = new PointerNode<DataNode<V>, Flag>(new DataNode<V>(), Flag::FREE);
 
         ST = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
         MT = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
@@ -204,9 +347,11 @@ public:
     void Traverse(OperationRecord<V> *opData);
     void ExecuteOperation(OperationRecord<V> *opData, int myid);
     void InjectOperation(OperationRecord<V> *opData);
-    void ExecuteWindowTransaction(PointerNode<DataNode<V>, Flag> *pNode, DataNode<V> *dNode);
-    bool ExecuteCheapWindowTransaction(PointerNode<DataNode<V>, Flag> *pNode, DataNode<V> *dNode);
-    void SlideWindowDown(PointerNode<DataNode<V>, Flag> *pMoveFrom, DataNode<V> *dMoveFrom, PointerNode<DataNode<V>, Flag> *pMoveTo, DataNode<V> *dMoveTo);
+    void ExecuteWindowTransaction(Position<V> *pNode, DataNode<V> *dNode);
+    bool ExecuteCheapWindowTransaction(Position<V> *pNode, DataNode<V> *dNode);
+    void SlideWindowDown(Position<V> *pMoveFrom, DataNode<V> *dMoveFrom, Position<V> *pMoveTo, DataNode<V> *dMoveTo);
+    Position<V> *GetPRootAsPosition();
+    Position<V> *GetPointerNodeAsPosition(PointerNode<DataNode<V>, Flag> *pointerNode);
 };
 
 #include "concurrent.tcc"
