@@ -15,7 +15,7 @@
 \usepackage{amssymb}  % assumes amsmath package installed
 \usepackage{fixltx2e}
 \usepackage{verbatim}
-\usepackage{listings}
+\usepackage{listings, lstautogobble}
 
 \title{\LARGE \bf
 	Concurrent Wait-Free Red Black Trees
@@ -32,7 +32,7 @@
 	\maketitle
 	\thispagestyle{empty}
 	\pagestyle{empty}
-	\lstset{language=C++, frame=single, basicstyle=\footnotesize\bfseries, breaklines=true}
+	\lstset{language=C++, frame=single, basicstyle=\footnotesize\ttfamily, breaklines=true, stringstyle=\ttfamily, showstringspaces=false, frameround=ffff, autogobble=true, numbers=left,numberstyle=\tiny,numbersep=4pt}
 	
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -121,24 +121,126 @@
 	
 \section{Our Re-Implementation}
 Our goal was to recreate the concurrent wait-free red black tree algorithm presented in \cite{c1} using the C++ programming language, while also using the POSIX Threads (pthread.h library) for our our creation \& management of the threads involved. Upon completion of bringing the algorithms presented in \cite{c1} into C++, we then transformed our code to utilize the RSTM library (a software transactional memory library that allows only one change in a critical piece(s) of memory for any \textit{n} threads that currently access that piece of memory's \textit{read}/\textit{write} set). 
-	\subsection{Details of Code}
+	\subsection{Details of Conversion Decisions and Changes}
 
-	\lstinputlisting[firstline=15, lastline=58]{concurrent.hpp}
-	\caption{PackedPointer Data Structure}
-	
-	\lstinputlisting[firstline=1, lastline=23]{concurrent.tcc}]
-	
-	\subsection{Changes}
-	
-	\subsection{Obstacles}
+	There are a few highlights in our code that are unique to our conversion from \cite{c1}'s algorithm to C++, we will outline them in this section and provide insight as to why we chose to implement them this way.
 
-\section{Proofs}
+	\subsubsection{PackedPointer}
+	\begin{figure}
+		\lstinputlisting[firstnumber=15, firstline=15, lastline=58]{../Implementation/concurrent.hpp}
+		\caption{PackedPointer Data Structure}
+		\label{packedpointer}
+	\end{figure}
+	
+	We created a class in our implementation titled `PackedPointer' \ref{packedpointer}to help us facilitate the single-word dual-use nature of each pointer node, the data node's \textit{next} field, as well as the operation record's \textit{state} field. Because we needed to update these fields in a single atomic instruction, it made sense to use a bitmasking technique, where we steal the unused 2 bits in the most-significant bit section of any given pointer. We cast the pointer as a \textit{uint64\_t} datatype to ensure that these two bits will never be use, because in a 64-bit system pointers will only utilize the 48 least-significant bits. If we had decided to use a \textit{uint32\_t} datatype, we would have to ensure that each pointer was memory aligned and would not interfere with our \textit{tag} bits. We created supporting methods in our class creation to aid us when utilizing our PackedPointer data structure in the tree. \textit{setPointerAndPreserveTag} allows us to feed a PackedPointer a new address while still maintaining its' flag of being FREE or OWNED. \textit{getPointer} is necessary when retrieving data from the address that our PackedPointer is holding. \textit{setTag} allows us to change the state or flag of a PackedPointer, and \textit{getTag} allows us to strip off the address contained in a PackedPointer to view only the status or flag set on the PackedPointer currently. In \ref{packedpointerexample} we demonstrate how these PackedPointer data structures are created and utilized inside our code. We use the constructor method of PackedPointer to create brand new PackedPointers that address their respective data nodes and set the expected \textit{tag}. This way, when we run our compare and swap operation (\_\_sync\_bool\_compare\_and\_swap), we can verify that our \textit{pRoot} pointer node matches our expected \textit{pRootFree} pointer node, and if this is true then we can claim ownership of the root by swapping \textit{pCopyOwned} into it.
+	
+	\begin{figure}
+		\begin{lstlisting}
+		auto pRootFree = new PackedPointer<DataNode<V>, Flag>(dRoot, Flag::FREE);
+		auto pCopyOwned = new PackedPointer<DataNode<V>, Flag>(dCopy, Flag::OWNED);
+		
+		__sync_bool_compare_and_swap(&(this->pRoot), pRootFree, pCopyOwned);
+		\end{lstlisting}
+		\caption{PackedPointer Utilization Example from InjectOperation}
+		\label{packedpointerexample}
+	\end{figure}
+
+	\begin{figure}
+		\lstinputlisting[firstnumber=86, firstline=86, lastline=92]{../Implementation/concurrent.tcc}
+		\caption{Select Function}
+		\label{selectfunction}
+	\end{figure}
+
+\begin{figure}
+\begin{lstlisting}
+uint32_t pid = Select();
+OperationRecord<V> *pidOpData = this->ST[pid];
+
+... //phase 2 of insertion occurs
+
+Traverse(pidOpData);
+\end{lstlisting}
+\caption{Select Utilization from InsertOrUpdate}
+\label{selectfunctionexample}
+\end{figure}
+
+\subsubsection{Select}
+\cite{c1} states that when we assign \textit{pid} in our \textit{InsertOrUpdate} function and in other sections of the code that refer to helping, we should be selecting a process to help in a ``round-robin manner''. To facilitate this, we created a \textit{Select} function \ref{selectfunction} that simply retrieves the next process ID using an \textit{mIndex} variable that is maintained by the tree in which the process is operating in. It does so by returning the \textit{uint32\_t} ID which is then used to correlate to an index in either our ST or MT table, then increments \textit{mIndex} by 1 modulo the number of threads that are operating on the tree. In \ref{selectfunctionexample} we show how \textit{select} returns the pid which is then used to retrieve the \textit{search} operation (ST[\textit{pid}]) that this process will help after it has performed its' own operation.
+
+\begin{figure}
+	\begin{lstlisting}
+	DataNode<V> *windowSoFar = pCurrent->getDataNode()->clone();
+	
+	PointerNode<DataNode<V>, Flag> *pNextToAdd;
+	DataNode<V> *dNextToAdd;
+	
+	bool leftAcquired = false;
+	bool rightAcquired = false;
+	
+	while(true)
+	{
+	bool isLeft = false;
+	
+	if(!leftAcquired) {
+		pNextToAdd = pCurrent->getDataNode()->mLeft;
+		isLeft = true;
+	}
+	else if(!rightAcquired) {
+		pNextToAdd = pCurrent->getDataNode()->mRight;
+	}
+	else {
+		break;
+	}
+	
+	if(pNextToAdd == nullptr) {
+		if(isLeft) {
+			leftAcquired = true;
+		}
+		else {
+			rightAcquired = true;
+		}
+			continue;
+	}
+	
+	dNextToAdd = pNextToAdd->getDataNode();
+	
+	if (dNextToAdd->mOpData != nullptr) {
+		ExecuteWindowTransaction(pNextToAdd, dNextToAdd);
+	}
+	
+	dNextToAdd = pNextToAdd->getDataNode();
+	
+	if(isLeft) {
+		windowSoFar->mLeft = new PointerNode<DataNode<V>, Flag>(dNextToAdd->clone(), pNextToAdd->getFlag());
+		leftAcquired = true;
+	}
+	else {
+		windowSoFar->mRight = new PointerNode<DataNode<V>, Flag>(dNextToAdd->clone(), pNextToAdd->getFlag());
+		rightAcquired = true;
+	}
+	}
+	\end{lstlisting}
+	\caption{Window Creation from ExecuteWindowTransaction}
+	\label{windowcreation}	
+\end{figure}
+
+\subsubsection{Window Depth}
+While converting \cite{c1}'s algorithm to C++, we discovered that we have no defined window size. We chose 2 to be our window depth in our implementation, so any given window will contain 1-3 nodes depending on its' location in the red black tree. We show this in \ref{windowcreation}, where we build our current W\textsubscript{L} before we modify it. \textit{windowSoFar} starts as our root, and comes from \textit{pCurrent}, the pointer node that maintains this window in the tree (Line 1). We instantiate our pointer node and data node that we will use to copy the W\textsubscript{G} into our W\textsubscript{L} (Lines 3 \& 4), and because our window depth is 2, we check to ensure that we've acquired both the root's left and right child into our copied window (Lines 13 \& 17). We do this one at a time, setting our \textit{pNextToAdd} and \textit{dNextToAdd} to our \textit{pCurrent}'s data node children (Lines 14 \& 18). If our \textit{pNextToAdd} is a \textit{nullptr}, the current node has no children and we can stop with the current window being a size of 1 (Line 31). If the copied node has a pending transaction, we help perform the instruction given the information in \textit{mOpData} (Line 37). Then we can acquire \textit{pNextToAdd}'s data node (Line 40), and inject the current \textit{pNextToAdd} (whether that is currently the root's left or right child) into our window (Lines 43 \& 47).
+
+\subsection{Obstacles}
+	
+
+\section{Informal Proofs}
 
 	\subsection{Progress Guarantee}
-
+	The progress guarantee of our implementation of \cite{c1}'s algorithm is \textit{wait-free}. \\
+	This is supported by the utilization of \textit{helping} other processes complete their operations that have been injected into the red black tree. Because operations hold ownership of nodes (not processes), a process that is traversing through the tree during a \textit{modify} operation will be forced to help another process complete. It does so before copying any given node that has an operation pending on it by utilizing the \textit{opData} field in that data node. A \textit{search} operation will also be wait-free given that there are \textit{modify} operations because \textit{modify} operations are also forced to help \textit{search} operations in a round-robin manner after performing their own.\\
+	We can also guarantee that an operation will finish in a finite number of steps because of the use of W\textsubscript{ML}. In this case the window in which a process will perform its' transaction is copied into a local sect, and only after performing its' operations and balancing in its' local window will it attempt to replace the W\textsubscript{G} with its' W\textsubscript{ML}. If the compare and swap replacement fails, this shows that another process was able to make progress on the data node's inject operation and thus, the operation has been performed successfully.
 	\subsection{Correctness Condition}
-	
-	\subsection{Synchronization Techniques}
+	The correctness condition is \textit{linearizable}. \\
+	This is possible because of the linearization points that are available in our \textit{modify} and \textit{search} operations, as well as the notion that any given operation will only be performed on \textit{active} nodes \cite{c5}. Windows are updated in a W\textsubscript{L} before being pushed into the tree's W\textsubscript{G}. Thus, W\textsubscript{ML} is only seen by the process that creates it and no other. \\
+	From here we can say that \textit{modify} operations linearize only after W\textsubscript{G} has been replaced with W\textsubscript{ML}, and any other process will only be able to see all or none of the modifications that have been performed, keeping the global red black tree balanced and correct. \\
+	Now we can say that \textit{search} operations will linearize upon finding the value record associated with the search \textit{key}, because if it has been found in the tree and is an \textit{active} node, then this operation is guaranteed to be correct.
 	
 \section{Experimentation}
 \subsection{Experimental Setup}
@@ -228,6 +330,7 @@ We utilized an Intel 4-core i5 chip running on a 64-bit Linux Ubuntu 16.04 Virtu
 \end{figure}
 
 \subsection{Experimental Results}
+
 
 	\section{CONCLUSIONS}
 	
