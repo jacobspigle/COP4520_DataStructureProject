@@ -34,10 +34,22 @@ class StateNode
 public: 
     T *mPackedPointer;
 
+    StateNode()
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+    }
+
+    StateNode(T* packedPointer)
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = packedPointer;
+    }
+
     StateNode(T *packedPointer, U tag)
     {
+        mPackedPointer = (T *) malloc(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
-        mPackedPointer = (T*) ((uint64_t) packedPointer & (!mask));
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
         mask = (uint64_t) tag << 62;
         mPackedPointer = (T*)((uint64_t) packedPointer | mask);
     }
@@ -47,6 +59,14 @@ public:
         U tag = getTag();
         mPackedPointer = pointer;
         setTag(tag);
+    }
+
+    T *unpack()
+    {
+        uint64_t remove_tag = (uint64_t) 0b11 << 62;
+        T *pointer = mPackedPointer;
+        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        return pointer;
     }
 
     StateNode<T, U> *getCleanSelfPointer()
@@ -60,7 +80,7 @@ public:
     void setTag(U tag)
     {
         uint64_t mask = (uint64_t) 0b11 << 62;
-        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (!mask));
+        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (~mask));
         mask = (uint64_t) tag << 62;
         mPackedPointer = (T*)((uint64_t) mPackedPointer | mask);
     }
@@ -68,16 +88,6 @@ public:
     U getTag()
     {
         return (U) ((uint64_t) mPackedPointer >> 62);
-    }
-
-    StateNode()
-    {
-        mPackedPointer = nullptr;
-    }
-
-    StateNode(T* packedPointer)
-    {
-        mPackedPointer = packedPointer;
     }
 
     void setStatus(Status status)
@@ -107,10 +117,23 @@ class NextNode
 public: 
     T *mPackedPointer;
 
+    NextNode()
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = nullptr;
+    }
+
+    NextNode(T* packedPointer)
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = packedPointer;
+    }
+
     NextNode(T *packedPointer, U tag)
     {
+        mPackedPointer = (T *) malloc(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
-        mPackedPointer = (T*) ((uint64_t) packedPointer & (!mask));
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
         mask = (uint64_t) tag << 62;
         mPackedPointer = (T*)((uint64_t) packedPointer | mask);
     }
@@ -120,6 +143,14 @@ public:
         U tag = getTag();
         mPackedPointer = pointer;
         setTag(tag);
+    }
+
+    T *unpack()
+    {
+        uint64_t remove_tag = (uint64_t) 0b11 << 62;
+        T *pointer = mPackedPointer;
+        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        return pointer;
     }
 
     NextNode<T, U> *getCleanSelfPointer()
@@ -133,7 +164,7 @@ public:
     void setTag(U tag)
     {
         uint64_t mask = (uint64_t) 0b11 << 62;
-        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (!mask));
+        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (~mask));
         mask = (uint64_t) tag << 62;
         mPackedPointer = (T*)((uint64_t) mPackedPointer | mask);
     }
@@ -141,16 +172,6 @@ public:
     U getTag()
     {
         return (U) ((uint64_t) mPackedPointer >> 62);
-    }
-
-    NextNode()
-    {
-        mPackedPointer = nullptr;
-    }
-
-    NextNode(T* packedPointer)
-    {
-        mPackedPointer = packedPointer;
     }
 
     void setStatus(Status status)
@@ -180,10 +201,23 @@ class PointerNode
 public: 
     T *mPackedPointer;
 
+    PointerNode()
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = nullptr;
+    }
+
+    PointerNode(T* packedPointer)
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = packedPointer;
+    }
+
     PointerNode(T *packedPointer, U tag)
     {
+        mPackedPointer = (T *) malloc(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
-        mPackedPointer = (T*) ((uint64_t) packedPointer & (!mask));
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
         mask = (uint64_t) tag << 62;
         mPackedPointer = (T*)((uint64_t) packedPointer | mask);
     }
@@ -193,6 +227,14 @@ public:
         U tag = getTag();
         mPackedPointer = pointer;
         setTag(tag);
+    }
+
+    T *unpack()
+    {
+        uint64_t remove_tag = (uint64_t) 0b11 << 62;
+        T *pointer = mPackedPointer;
+        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        return pointer;
     }
 
     PointerNode<T, U> *getCleanSelfPointer()
@@ -206,7 +248,7 @@ public:
     void setTag(U tag)
     {
         uint64_t mask = (uint64_t) 0b11 << 62;
-        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (!mask));
+        mPackedPointer = (T*) ((uint64_t) mPackedPointer & (~mask));
         mask = (uint64_t) tag << 62;
         mPackedPointer = (T*)((uint64_t) mPackedPointer | mask);
     }
@@ -214,16 +256,6 @@ public:
     U getTag()
     {
         return (U) ((uint64_t) mPackedPointer >> 62);
-    }
-
-    PointerNode()
-    {
-        mPackedPointer = nullptr;
-    }
-
-    PointerNode(T* packedPointer)
-    {
-        mPackedPointer = packedPointer;
     }
 
     void setStatus(Status status)
@@ -277,6 +309,9 @@ public:
         mKey = key;
         mValue = value;
         mPid = -1;
+
+        mValue = nullptr;
+        mState = (StateNode<Position<V>, Status> *) malloc(sizeof(StateNode<Position<V>, Status>));
     }
 };
 
@@ -337,8 +372,7 @@ public:
 
         ST = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
         MT = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
-        for (int i = 0; i < numThreads; i++)
-        {
+        for (int i = 0; i < numThreads; i++) {
             ST[i] = nullptr;
             MT[i] = nullptr;
         }
