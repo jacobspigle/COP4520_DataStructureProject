@@ -24,6 +24,10 @@ class PointerNode;
 template <class V>
 union Position {PointerNode<DataNode<V>, Flag> *windowLocation; ValueRecord<V> *valueRecord;};
 
+// TODO: use LSB instead of MSB for pointer packing because of segfaulting
+// std::align is helpful for guaranteeing memory alignment
+// need to update doc to reflect this
+
 template <class T, class U>
 class StateNode
 {
