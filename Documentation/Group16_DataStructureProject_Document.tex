@@ -409,7 +409,10 @@ We utilized an Intel 4-core i5 chip running on a 64-bit Linux Ubuntu 16.04 Virtu
 \textit{\textbf{Note:} These experimental results were aggregated from a previous iteration of our code. The code we have submitted is the progress that we have made since the experimentation to further our re-implementation of \cite{c1}'s proposed data structure.}
 
 	\section{CONCLUSIONS}
-	Our presentation of both the concurrent and transactional data structure implementations deriving from \cite{c1} demonstrates the linearizibility of the resulting C++ program. Searching in the Red-Black tree using these algorithms will be significantly less expensive due to the lack of helping. Modify operations that are performed in separate windows are able to execute concurrently without loss of correctness at any point because of the single word compare and swap instructions used when swapping out windows during a window transaction.
+	
+	Our presentation of both the concurrent and transactional data structure implementations deriving from \cite{c1} demonstrates the linearizibility of the resulting C++ program. The search operation in the Red-Black tree using these algorithms will be significantly less expensive due to the lack of helping other operations. Modify operations that are performed in separate windows are able to execute concurrently without loss of correctness at any point because of the single word compare and swap instructions used when swapping out windows during a window transaction.
+
+	Modifying our program to use the RSTM library helped marginally, but not as much as we expected. The authors say that the structure is designed not to need transactional modifications, so it might be the case that they did not see enough of a benefit to bother with it. The main areas for improvement in the data structure seem to be efficient use of Chuong's algorithm for operation agreement between threads and in Tarjan's algorithm for top-down red-black tree balancing.
 
 	\section*{APPENDIX}
 	
