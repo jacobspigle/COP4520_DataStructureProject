@@ -55,12 +55,12 @@ public:
 
     StateNode()
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = (T *) TM_ALLOC(sizeof(T));
     }
 
     void InitializeStateNode()
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = (T *) TM_ALLOC(sizeof(T));
     }
 
     StateNode(T* packedPointer)
@@ -78,7 +78,7 @@ public:
 
     void InitializeStateNode(T *packedPointer, U tag)
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = (T *) TM_ALLOC(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
         mask = (uint64_t) tag << 62;
@@ -149,7 +149,7 @@ public:
 
     NextNode()
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = (T *) TM_ALLOC(sizeof(T));
     }
 
     NextNode(T* packedPointer)
@@ -167,7 +167,7 @@ public:
 
     void InitializeNextNode(T *packedPointer, U tag)
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = (T *) TM_ALLOC(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
         mask = (uint64_t) tag << 62;
@@ -243,7 +243,7 @@ public:
 
     void InitializePointerNode()
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = (T *) TM_ALLOC(sizeof(T));
     }
 
     PointerNode(T* packedPointer)
@@ -264,7 +264,7 @@ public:
 
     void InitializePointerNode(T *packedPointer, U tag)
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
+        mPackedPointer = (T *) TM_ALLOC(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
         mask = (uint64_t) tag << 62;
@@ -336,14 +336,13 @@ public:
 
     ValueRecord(V *value, uint32_t gate)
     {
-        mValue = value;
-        mGate = gate;
+	InitializeValueRecord(value, gate);
     }
 
     void InitializeValueRecord(V *value, uint32_t gate)
     {
-        mValue = value;
-        mGate = gate;
+        TM_WRITE(mValue, value);
+        TM_WRITE(mGate, gate);
     }
 };
 
@@ -364,12 +363,12 @@ public:
 
     void InitializeOperationRecord(Type type, uint32_t key, V *value)
     {
-        mType = type;
-        mKey = key;
-        mValue = value;
-        mPid = -1;
+        TM_WRITE(mType, type);
+        TM_WRITE(mKey, key);
+        TM_WRITE(mValue, value);
+        TM_WRITE(mPid, -1);
 
-        mState = (StateNode<Position<V>, Status> *) malloc(sizeof(StateNode<Position<V>, Status>));
+        mState = (StateNode<Position<V>, Status> *) TM_ALLOC(sizeof(StateNode<Position<V>, Status>));
         mState->InitializeStateNode();
     }
 };
@@ -396,26 +395,26 @@ public:
 
     void InitializeDataNode()
     {
-        mColor = BLACK;
-        mKey = UINT32_MAX;
+        TM_WRITE(mColor, BLACK);
+        TM_WRITE(mKey, UINT32_MAX);
         //mValData = new ValueRecord<V>(nullptr, 0);
-        mValData = (ValueRecord<V> *) malloc(sizeof(ValueRecord<V>));
+        mValData = (ValueRecord<V> *) TM_ALLOC(sizeof(ValueRecord<V>));
 
-        mLeft = nullptr;
-        mRight = nullptr;
-        mOpData = nullptr;
-        mNext = nullptr;
+        TM_WRITE(mLeft, nullptr);
+        TM_WRITE(mRight, nullptr);
+        TM_WRITE(mOpData, nullptr);
+        TM_WRITE(mNext, nullptr);
     }
 
     DataNode *clone()
     {
         //DataNode *copy = new DataNode();
-        DataNode *copy = (DataNode<V> *) malloc(sizeof(DataNode<V>));
-        copy->mColor = mColor;
-        copy->mKey = mKey;
-        copy->mValData = mValData;
-        copy->mLeft = mLeft;
-        copy->mRight = mRight;
+        DataNode *copy = (DataNode<V> *) TM_ALLOC(sizeof(DataNode<V>));
+        TM_WRITE(copy->mColor, mColor);
+        TM_WRITE(copy->mKey, mKey);
+        TM_WRITE(copy->mValData, mValData);
+        TM_WRITE(copy->mLeft, mLeft);
+        TM_WRITE(copy->mRight, mRight);
         return copy;
     }
 };
@@ -436,14 +435,14 @@ public:
 
         // initialize pRoot with sentinel-valued DataNode
         //auto pRoot = new PointerNode<DataNode<V>, Flag>(new DataNode<V>(), Flag::FREE);
-        auto pRoot = (PointerNode<DataNode<V>, Flag> *) malloc(sizeof(PointerNode<DataNode<V>, Flag>));
-        pRoot->InitializePointerNode((DataNode<V> *)malloc(sizeof(DataNode<V>)), Flag::FREE);
+        auto pRoot = (PointerNode<DataNode<V>, Flag> *) TM_ALLOC(sizeof(PointerNode<DataNode<V>, Flag>));
+        pRoot->InitializePointerNode((DataNode<V> *)TM_ALLOC(sizeof(DataNode<V>)), Flag::FREE);
 
-        ST = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
-        MT = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
+        ST = (OperationRecord<V>**) TM_ALLOC (sizeof(OperationRecord<V>*) * numThreads);
+        MT = (OperationRecord<V>**) TM_ALLOC (sizeof(OperationRecord<V>*) * numThreads);
         for (int i = 0; i < numThreads; i++) {
-            ST[i] = nullptr;
-            MT[i] = nullptr;
+            TM_WRITE(ST[i], nullptr);
+            TM_WRITE(MT[i], nullptr);
         }
     }
 
