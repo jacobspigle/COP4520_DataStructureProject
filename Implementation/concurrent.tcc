@@ -101,7 +101,7 @@ template <class V>
 void ConcurrentTree<V>::Traverse(OperationRecord<V> *opData)
 {
     // start from the root of the tree
-    DataNode<V> *dCurrent = pRoot->mPackedPointer;
+    DataNode<V> *dCurrent = this->pRoot->unpack();
 
     // find a leaf
     while(dCurrent->mLeft != nullptr || dCurrent->mRight != nullptr)
@@ -237,7 +237,7 @@ void ConcurrentTree<V>::ExecuteWindowTransaction(Position<V> *pNode, DataNode<V>
     PointerNode<DataNode<V>, Flag> *pCurrent = pNode->windowLocation; // read the contents of pNode again
     if (pCurrent->unpack()->mOpData == opData) {
         if (pCurrent->getFlag() == Flag::OWNED) {
-            if (pNode->windowLocation->getCleanSelfPointer() == this->pRoot->getCleanSelfPointer()) {
+            if (pNode->windowLocation->unpack() == this->pRoot->unpack()) {
                 // the operation may have just been injected into the tree, but the operation
                 // state may not have been updated yet; update the state
                 //auto pRootAsPosition = new Position<V>();
@@ -425,7 +425,7 @@ bool ConcurrentTree<V>::ExecuteCheapWindowTransaction(Position<V> *pNode, DataNo
         Position<V> *pNextToVisit = dNode->mNext->mPackedPointer; // the address of the pointer node of the next tree node to be visited;
         DataNode<V> *dNextToVisit = pNextToVisit->windowLocation->mPackedPointer; // pNextToVisit dNode;
 
-        if (opData->mState->unpack()->windowLocation->getCleanSelfPointer() == pNode->windowLocation->getCleanSelfPointer()) {
+        if (opData->mState->unpack()->windowLocation->unpack() == pNode->windowLocation->unpack()) {
             return true; // abort; transaction already executed
         }
         // if there is an operation residing at the node, then help it move out of the way

@@ -1,6 +1,25 @@
 #include <memory>
 #include <pthread.h>
 #include <climits>
+#include <iostream>
+
+void print_bits(uint64_t data)
+{
+    uint64_t print_mask = (uint64_t) 0b1 << 63;
+
+    for(int i=0; i<64; i++) {
+        if(print_mask & data) {
+            std::cout << "1";
+        }
+        else {
+            std::cout << "0";
+        }
+
+        print_mask >>= 1;
+    }
+
+    std::cout << std::endl;
+}
 
 // #define PointerNode PackedPointer
 // #define NextNode PackedPointer
@@ -39,15 +58,18 @@ public:
         mPackedPointer = (T *) malloc(sizeof(T));
     }
 
-    StateNode(T* packedPointer)
+    void InitializeStateNode()
     {
         mPackedPointer = (T *) malloc(sizeof(T));
+    }
+
+    StateNode(T* packedPointer)
+    {
         mPackedPointer = packedPointer;
     }
 
     StateNode(T *packedPointer, U tag)
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
         mask = (uint64_t) tag << 62;
@@ -73,8 +95,7 @@ public:
     T *unpack()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
-        T *pointer = mPackedPointer;
-        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        T *pointer = (T *) ((uint64_t) mPackedPointer & remove_tag);
         return pointer;
     }
 
@@ -129,18 +150,15 @@ public:
     NextNode()
     {
         mPackedPointer = (T *) malloc(sizeof(T));
-        mPackedPointer = nullptr;
     }
 
     NextNode(T* packedPointer)
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
         mPackedPointer = packedPointer;
     }
 
     NextNode(T *packedPointer, U tag)
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
         mask = (uint64_t) tag << 62;
@@ -166,8 +184,7 @@ public:
     T *unpack()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
-        T *pointer = mPackedPointer;
-        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        T *pointer = (T *) ((uint64_t) mPackedPointer & remove_tag);
         return pointer;
     }
 
@@ -222,22 +239,22 @@ public:
     PointerNode()
     {
         mPackedPointer = (T *) malloc(sizeof(T));
-        mPackedPointer = nullptr;
     }
 
     PointerNode(T* packedPointer)
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
         mPackedPointer = packedPointer;
     }
 
     PointerNode(T *packedPointer, U tag)
     {
-        mPackedPointer = (T *) malloc(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
         mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
+        print_bits((uint64_t) mPackedPointer);
         mask = (uint64_t) tag << 62;
+        print_bits(mask);
         mPackedPointer = (T*)((uint64_t) packedPointer | mask);
+        print_bits((uint64_t) mPackedPointer);
     }
 
     void InitializePointerNode(T *packedPointer, U tag)
@@ -259,8 +276,7 @@ public:
     T *unpack()
     {
         uint64_t remove_tag = (uint64_t) 0b11 << 62;
-        T *pointer = mPackedPointer;
-        pointer = (T *) ((uint64_t) pointer & remove_tag);
+        T *pointer = (T *) ((uint64_t) mPackedPointer & remove_tag);
         return pointer;
     }
 
@@ -338,11 +354,7 @@ public:
 
     OperationRecord(Type type, uint32_t key, V *value)
     {
-        mType = type;
-        mKey = key;
-        mValue = value;
-        mPid = -1;
-        mState = (StateNode<Position<V>, Status> *) malloc(sizeof(StateNode<Position<V>, Status>));
+        InitializeOperationRecord(type, key, value);
     }
 
     void InitializeOperationRecord(Type type, uint32_t key, V *value)
@@ -351,7 +363,9 @@ public:
         mKey = key;
         mValue = value;
         mPid = -1;
+
         mState = (StateNode<Position<V>, Status> *) malloc(sizeof(StateNode<Position<V>, Status>));
+        mState->InitializeStateNode();
     }
 };
 
