@@ -127,12 +127,59 @@ Our goal was to recreate the concurrent wait-free red black tree algorithm prese
 
 	\subsubsection{PackedPointer}
 	\begin{figure}
-		\lstinputlisting[firstnumber=15, firstline=15, lastline=58]{../Implementation/concurrent.hpp}
-		\caption{PackedPointer Data Structure}
-		\label{packedpointer}
+		\begin{lstlisting}
+			template <class T, class U>
+			class PointerNode
+			{
+				public: 
+				T *mPackedPointer;
+				
+				void InitializePointerNode()
+				{
+					mPackedPointer = (T *) TM_ALLOC(sizeof(T));
+				}
+				
+				PointerNode(T *packedPointer, U tag)
+				{
+					uint64_t mask = (uint64_t) 0b11 << 62;
+					mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
+					print_bits((uint64_t) mPackedPointer);
+					mask = (uint64_t) tag << 62;
+					print_bits(mask);
+					mPackedPointer = (T*)((uint64_t) packedPointer | mask);
+					print_bits((uint64_t) mPackedPointer);
+				}
+				
+				void setPointerAndPreserveTag(T *pointer)
+				{
+					U tag = getTag();
+					mPackedPointer = pointer;
+					setTag(tag);
+				}
+				
+				T *unpack()
+				{
+					uint64_t remove_tag = (uint64_t) 0b11 << 62;
+					T *pointer = (T *) ((uint64_t) mPackedPointer & remove_tag);
+					return pointer;
+				}
+				
+				void setTag(U tag)
+				{
+					uint64_t mask = (uint64_t) 0b11 << 62;
+					mPackedPointer = (T*) ((uint64_t) mPackedPointer & (~mask));
+					mask = (uint64_t) tag << 62;
+					mPackedPointer = (T*)((uint64_t) mPackedPointer | mask);
+				}
+				
+				U getTag()
+				{
+					return (U) ((uint64_t) mPackedPointer >> 62);
+				}
+		\end{lstlisting}
 	\end{figure}
 	
-	We created a class in our implementation titled `PackedPointer' \ref{packedpointer}to help us facilitate the single-word dual-use nature of each pointer node, the data node's \textit{next} field, as well as the operation record's \textit{state} field. Because we needed to update these fields in a single atomic instruction, it made sense to use a bitmasking technique, where we steal the unused 2 bits in the most-significant bit section of any given pointer. We cast the pointer as a \textit{uint64\_t} datatype to ensure that these two bits will never be use, because in a 64-bit system pointers will only utilize the 48 least-significant bits. If we had decided to use a \textit{uint32\_t} datatype, we would have to ensure that each pointer was memory aligned and would not interfere with our \textit{tag} bits. We created supporting methods in our class creation to aid us when utilizing our PackedPointer data structure in the tree. \textit{setPointerAndPreserveTag} allows us to feed a PackedPointer a new address while still maintaining its' flag of being FREE or OWNED. \textit{getPointer} is necessary when retrieving data from the address that our PackedPointer is holding. \textit{setTag} allows us to change the state or flag of a PackedPointer, and \textit{getTag} allows us to strip off the address contained in a PackedPointer to view only the status or flag set on the PackedPointer currently. In \ref{packedpointerexample} we demonstrate how these PackedPointer data structures are created and utilized inside our code. We use the constructor method of PackedPointer to create brand new PackedPointers that address their respective data nodes and set the expected \textit{tag}. This way, when we run our compare and swap operation (\_\_sync\_bool\_compare\_and\_swap), we can verify that our \textit{pRoot} pointer node matches our expected \textit{pRootFree} pointer node, and if this is true then we can claim ownership of the root by swapping \textit{pCopyOwned} into it.
+	We created a class in our implementation titled `PackedPointer' \ref{packedpointer}to help us facilitate the single-word dual-use nature of each pointer node, the data node's \textit{next} field, as well as the operation record's \textit{state} field. Because we needed to update these fields in a single atomic instruction, it made sense to use a bitmasking technique, where we steal the unused 2 bits in the most-significant bit section of any given pointer. We cast the pointer as a \textit{uint64\_t} datatype to ensure that these two bits will never be use, because in a 64-bit system pointers will only utilize the 48 least-significant bits. If we had decided to use a \textit{uint32\_t} datatype, we would have to ensure that each pointer was memory aligned and would not interfere with our \textit{tag} bits. We created supporting methods in our class creation to aid us when utilizing our PackedPointer data structure in the tree. \textit{setPointerAndPreserveTag} allows us to feed a PackedPointer a new address while still maintaining its' flag of being FREE or OWNED. \textit{unpack} is necessary when retrieving data from the address that our PackedPointer is holding. \textit{setTag} allows us to change the state or flag of a PackedPointer, and \textit{getTag} allows us to strip off the address contained in a PackedPointer to view only the status or flag set on the PackedPointer currently. In \ref{packedpointerexample} we demonstrate how these PackedPointer data structures are created and utilized inside our code. We use the constructor method of PackedPointer to create brand new PackedPointers that address their respective data nodes and set the expected \textit{tag}. This way, when we run our compare and swap operation (\_\_sync\_bool\_compare\_and\_swap), we can verify that our \textit{pRoot} pointer node matches our expected \textit{pRootFree} pointer node, and if this is true then we can claim ownership of the root by swapping \textit{pCopyOwned} into it.
 	
 	\begin{figure}
 		\begin{lstlisting}
@@ -227,20 +274,77 @@ Traverse(pidOpData);
 \subsubsection{Window Depth}
 While converting \cite{c1}'s algorithm to C++, we discovered that we have no defined window size. We chose 2 to be our window depth in our implementation, so any given window will contain 1-3 nodes depending on its' location in the red black tree. We show this in \ref{windowcreation}, where we build our current W\textsubscript{L} before we modify it. \textit{windowSoFar} starts as our root, and comes from \textit{pCurrent}, the pointer node that maintains this window in the tree (Line 1). We instantiate our pointer node and data node that we will use to copy the W\textsubscript{G} into our W\textsubscript{L} (Lines 3 \& 4), and because our window depth is 2, we check to ensure that we've acquired both the root's left and right child into our copied window (Lines 13 \& 17). We do this one at a time, setting our \textit{pNextToAdd} and \textit{dNextToAdd} to our \textit{pCurrent}'s data node children (Lines 14 \& 18). If our \textit{pNextToAdd} is a \textit{nullptr}, the current node has no children and we can stop with the current window being a size of 1 (Line 31). If the copied node has a pending transaction, we help perform the instruction given the information in \textit{mOpData} (Line 37). Then we can acquire \textit{pNextToAdd}'s data node (Line 40), and inject the current \textit{pNextToAdd} (whether that is currently the root's left or right child) into our window (Lines 43 \& 47).
 
+\begin{figure}
+	\begin{lstlisting}
+		template <class V>
+		void *dynamic_worker(void *args)
+		{
+			ArgsStruct *myArgs = (ArgsStruct *) args;
+			uint32_t sw = myArgs->mSearchWeight;
+			uint32_t iw = myArgs->mInsertWeight + sw;
+			uint32_t dw = myArgs->mDeleteWeight + iw;
+			int num_ops = NUM_DYNAMIC_OPERATIONS_PER_THREAD;
+			uint32_t roll;
+		
+		while(num_ops --> 0)
+		{
+			roll = rand() % total_weight;
+		
+			if(roll < sw) {
+				// SEARCH
+				char buffer;
+				uint32_t hash = 0;
+				
+				//creation of key
+				for(int i=0; i<7; i++) {
+				buffer[i] = rand() % ('z' - 'a') + 'a';
+				hash = (31 * hash) + (uint32_t) buffer[i];
+				}
+				
+				myArgs->mTree->Search(hash, myArgs->mPid);
+			}
+			else if(roll < iw) {
+				// INSERT or UPDATE
+				char buffer[8];
+				uint32_t hash = 0;
+				
+				... //creation of key
+			
+				buffer[7] = '\0';
+				std::string str (buffer);
+				std::string *str_ptr = (std::string *) malloc(str.size());
+			
+				myArgs->mTree->InsertOrUpdate(hash, str_ptr, myArgs->mPid);
+			}
+			else if(roll < dw) {
+				// DELETE
+				char buffer;
+				uint32_t hash = 0;
+				
+				... //creation of key
+				
+				myArgs->mTree->Delete(hash, myArgs->mPid);
+				}
+			else {
+				// 0 weight for each operation. no operation can be chosen.
+				break;
+	\end{lstlisting}
+\end{figure}
+
+\subsubsection{Dynamic Worker Function}
+In our implementation we created what equates to a dice roller algorithm for deciding the operations that a thread will perform upon completion of another operation. We give weights to each of the operations at the top of the test file so we are able to dynamically change our tests to fit a particular set of test conditions.
+
 \subsection{Obstacles}
-
-
-
-\subsubsection{PackedPointer}
-We ran into problems initially with our PackedPointer objects because of our use of tagging, specifically any time that we attempted to dereference a PackedPointer we were running into a segmentation fault. We found out that it was necessary for us to remove the tag from the pointer before dereferencing, as the compiler checks the top 12-16 bits are 0 to ensure future safety in case higher bit addressing is added in subsequent operating systems or hardware.
 
 \subsubsection{\textit{new} vs. malloc}
 On our first pass-through of implementing our code, we used the keyword \textit{new} when initializing our class variables. Later, we realized that \textit{new} was not compatible with the RSTM library, and because part of our efforts sought to utilize RSTM, we made the switch to \textbf{malloc}. It is important to note that both \textit{new} and \textit{malloc} come at the cost of throughput. This is because while both are thread safe, they are only so because of the internal locking that they utilize in memory blocks that they access.
 
+\subsubsection{PackedPointer}
+We ran into problems initially with our PackedPointer objects because of our use of tagging, specifically any time that we attempted to dereference a PackedPointer we were running into a segmentation fault. We found out that it was necessary for us to remove the tag from the pointer before dereferencing, as the compiler checks the top 12-16 bits are 0 to ensure future safety in case higher bit addressing is added in subsequent operating systems or hardware. \\ \\
+We also were incurring inconsistent segmentation faults when running the concurrent and RSTM implementations of our algorithm. We believed that these runtime errors are tied to the tagging of our PackedPointer, when there were times that a PackedPointers' tag was being read before the pointer itself was initialized. We ensured that memory was allocated to a PackedPointer upon its' creation, that way it was filled with some irrelevant data to reference. Unfortunately, this did not seem to fix the problem. 
 
-	
 \subsection{RSTM Library}
-Our implementation of the RSTM Library was fairly simple to translate, because of our use of POSIX threads and malloc we could simply scope out the lines of code that needed to be adjusted. Namely, malloc was changed to TM\_ALLOC, assignments are changed to TM\_WRITE, we did not utilize TM\_READ as much as our TM\_WRITE. This is because most of our variables are initialized early on, and most of our conditional statements were either constants or \textit{nullptr}.
+Our implementation of the RSTM Library was fairly simple to translate, because of our use of POSIX threads and malloc we could simply scope out the lines of code that needed to be adjusted. Namely, malloc was changed to TM\_ALLOC, assignments are changed to TM\_WRITE, and our initialization \& comparison of variables was performed using TM\_READ. Additionally, all of our compare-and-swap operations have been replaced by TM\_WRITE operations. This is possible because RSTM stores the entire read/write set based on calls in our code to TM\_READ and TM\_WRITE. If there are any conflicts between any two transactions that attempt to access this shared memory space then one of the transactions will be aborted and unable to complete. This creates the correctness guarantee that while we are writing to a memory space with TM\_WRITE, no other operation will be able to change the object unexpectedly.
 
 \section{Informal Proofs}
 
@@ -258,96 +362,40 @@ Our implementation of the RSTM Library was fairly simple to translate, because o
 \subsection{Experimental Setup}
 We utilized an Intel 4-core i5 chip running on a 64-bit Linux Ubuntu 16.04 Virtual Machine given 4GB of RAM hosted on a 64-bit Windows 10 operating system for conducting experiments with our transactional data structure. Our implementation was written in C++ and utilizes POSIX threads for thread creation and management as well as an RSTM library for calls to memory and dynamic memory allocation. For each of our experiments we took the following parameters into account:
 \begin{itemize}
-	\item \textit{Number of Operations:} We kept the number of operations run on our red black tree static throughout all of our experimentation, keeping it at 500,000 operations.
+	\item \textit{Number of Operations:} We kept the number of operations run on our red black tree static throughout all of our experimentation, keeping it at 500,000 operations across our given number of threads.
 	\item \textit{Distribution of Operations:} We varied the distribution of each of our operations (\textit{search, insert/update,} and \textit{delete}) as such:
 	\begin{itemize}
 		\item \textit{(a) Write Dominant:} In this scenario, we have 50\% of our operations running \textit{insert/update} operations, while 25\% run \textit{delete} operations and the remaining 25\% running our \textit{search} operations.
 		\item \textit{(b) Read Dominant:} In this scenario, we have 50\% of our operations running \textit{search} operations, while 25\% run \textit{insert/update} operations and the remaining 25\% running our \textit{delete} operations.
 		\item \textit{(c) Mixed Workload:} In this scenario, we have an equal 33\% split between our \textit{search, insert/update} and \textit{delete} operations.
 	\end{itemize}
-	\item \textit{Degrees of Contention:} The number of threads in each test phase of our experimentation varied from 1, 2, 4, and 8 threads sharing the same data structure, each running our 500,000 operations.
+	\item \textit{Degrees of Contention:} The number of threads in each test phase of our experimentation varied from 1, 2, 4, and 8 threads sharing the same data structure, cumulatively running 500,000 operations.
 \end{itemize}
-\begin{comment}
+
 \begin{figure}[thpb]
 	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{WriteDominatedConcurrent.png}
-	}}
-	\caption{(a) Write Dominant | Concurrent}
+	\includegraphics[scale=.6]{WriteDominatedConcurrent.png}
+	\caption{(a) Write Dominant | Concurrent \& RTSM}
 	\label{writeDom1}
 \end{figure}
+
 \begin{figure}[thpb]
 	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{WriteDominatedTransactional2.png}
-	}}
-	\caption{(a) Write Dominant | Transactional Operations : 2}
-	\label{writeDom2}
-\end{figure}
-\begin{figure}[thpb]
-	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{WriteDominatedTransactional3.png}
-	}}
-	\caption{(a) Write Dominant | Transactional Operations: 3}
-	\label{writeDom3}
-\end{figure}
-\begin{figure}[thpb]
-	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{SearchDominatedConcurrent.png}
-	}}
-	\caption{(b) Search Dominant | Concurrent}
+	\includegraphics[scale=.6]{SearchDominatedConcurrent.png}
+	\caption{(b) Search Dominant | Concurrent \& RTSM}
 	\label{searchDom1}
 \end{figure}
+
 \begin{figure}[thpb]
 	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{SearchDominatedTransactional2.png}
-	}}
-	\caption{(b) Search Dominant | Transactional Operations : 2}
-	\label{searchDom2}
-\end{figure}
-\begin{figure}[thpb]
-	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{SearchDominatedTransactional3.png}
-	}}
-	\caption{(b) Search Dominant | Transactional Operations : 3}
-	\label{searchDom3}
-\end{figure}
-\begin{figure}[thpb]
-	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{mixedWorkloadConcurrent.png}
-	}}
-	\caption{(c) Mixed Workload | Concurrent}
+	\includegraphics[scale=.6]{mixedWorkloadConcurrent.png}
+	
+	\caption{(c) Mixed Workload | Concurrent \& RTSM}
 	\label{mixedWork1}
 \end{figure}
-\begin{figure}[thpb]
-	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{mixedWorkloadTransactional2.png}
-	}}
-	\caption{(c) Mixed Workload | Transactional Operations : 2}
-	\label{mixedWork2}
-\end{figure}
-\begin{figure}[thpb]
-	\centering
-	\framebox{\parbox{3in}{
-			\includegraphics[scale=.7]{mixedWorkloadTransactional3.png}
-	}}
-	\caption{(c) Mixed Workload | Transactional Operations : 3}
-	\label{mixedWork3}
-\end{figure}
-\end{comment}
 
 \subsection{Experimental Results}
-
-\begin{comment}
-\textit{Note that these experimental results were aggregated from a previous iteration of our code. The code we have submitted is the progress that we have made since the experimentation to re-implement \cite{c1}'s data structure.}
-\end{comment}
-Graphing and our result analysis are in progress, we will be updating this document with the final results from our experimentation.
+\textit{Note that these experimental results were aggregated from a previous iteration of our code. The code we have submitted is the progress that we have made since the experimentation to further our re-implementation of \cite{c1}'s proposed data structure.}
 
 	\section{CONCLUSIONS}
 	
