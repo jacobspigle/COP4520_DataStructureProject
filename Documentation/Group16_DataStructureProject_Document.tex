@@ -229,15 +229,13 @@ While converting \cite{c1}'s algorithm to C++, we discovered that we have no def
 
 \subsection{Obstacles}
 
-
+The main obstacle we faced was filling in the blanks on the details of the main algorithm and the referenced algorithms. The paper sets up a general skeleton of the concurrent wait-free red black tree, but the important details that differentiate a simpler concurrent red-black tree or even a lock-free red black tree from a wait-free version are left to the reader. Most of our time was spent examining referenced papers and developing our own ideas on improving them in the way the authors described.
 
 \subsubsection{PackedPointer}
 We ran into problems initially with our PackedPointer objects because of our use of tagging, specifically any time that we attempted to dereference a PackedPointer we were running into a segmentation fault. We found out that it was necessary for us to remove the tag from the pointer before dereferencing, as the compiler checks the top 12-16 bits are 0 to ensure future safety in case higher bit addressing is added in subsequent operating systems or hardware.
 
 \subsubsection{\textit{new} vs. malloc}
 On our first pass-through of implementing our code, we used the keyword \textit{new} when initializing our class variables. Later, we realized that \textit{new} was not compatible with the RSTM library, and because part of our efforts sought to utilize RSTM, we made the switch to \textbf{malloc}. It is important to note that both \textit{new} and \textit{malloc} come at the cost of throughput. This is because while both are thread safe, they are only so because of the internal locking that they utilize in memory blocks that they access.
-
-
 	
 \subsection{RSTM Library}
 Our implementation of the RSTM Library was fairly simple to translate, because of our use of POSIX threads and malloc we could simply scope out the lines of code that needed to be adjusted. Namely, malloc was changed to TM\_ALLOC, assignments are changed to TM\_WRITE, we did not utilize TM\_READ as much as our TM\_WRITE. This is because most of our variables are initialized early on, and most of our conditional statements were either constants or \textit{nullptr}.
