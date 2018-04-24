@@ -37,7 +37,7 @@ void ConcurrentTree<V>::InsertOrUpdate(uint32_t key, V *value, int myid)
     if(valData == nullptr) {
         // phase 2: try to add the key-value pair to the tree using the MTL-framework
         // select a search operation to help at the end of phase 2 to ensure wait freedom
-        uint32_t pid = Select(); // the process selected to help in round-robin manner
+        uint32_t pid = TM_READ(Select()); // the process selected to help in round-robin manner
         OperationRecord<V> *pidOpData = TM_READ(this->ST[pid]);
 
         // create and initialize a new operation record
@@ -57,13 +57,18 @@ void ConcurrentTree<V>::InsertOrUpdate(uint32_t key, V *value, int myid)
 
     if(valData != nullptr) {
         int numChecked = 0;
-        int pid = -1;
+        int pid;
         while (numChecked < this->mNumThreads)
         {
-            if (Select() != nullptr)
-            {
+            pid = TM_READ(Select());
 
+            if (MT[pid]!=nullptr)
+            {
+                TM_WRITE(MT[pid]->mValData, valData);
+                break;
             }
+
+            num_checked++;
         }
     }
 }
@@ -76,7 +81,7 @@ void ConcurrentTree<V>::Delete(uint32_t key, int myid)
         // phase 2: try to delete the key from the tree using the MTL-framework
         // select a search operation to help at the end of phase 2 to ensure wait-freedom
         uint32_t pid = Select(); // the process selected to help in a round-robin manner
-        OperationRecord<V> *pidOpData = ST[pid];
+        OperationRecord<V> *pidOpData = TM_READ(ST[pid]);
 
         // create and initialize a new operation record
         //OperationRecord<V> *opData = new OperationRecord<V>(Type::DELETE, key, nullptr);
@@ -96,8 +101,8 @@ void ConcurrentTree<V>::Delete(uint32_t key, int myid)
 template <class V>
 uint32_t ConcurrentTree<V>::Select()
 {
-    uint32_t fetched_pid = this->mIndex;
-    this->mIndex = (this->mIndex + 1) % this->mNumThreads;
+    uint32_t fetched_pid = TM_READ(this->mIndex);
+    TM_WRITE(this->mIndex, (this->mIndex + 1) % this->mNumThreads);
     return fetched_pid;
 }
 
@@ -105,7 +110,7 @@ template <class V>
 void ConcurrentTree<V>::Traverse(OperationRecord<V> *opData)
 {
     // start from the root of the tree
-    DataNode<V> *dCurrent = this->pRoot->unpack();
+    DataNode<V> *dCurrent = TM_READ(this->pRoot->unpack());
 
     // find a leaf
     while(dCurrent->mLeft != nullptr || dCurrent->mRight != nullptr)
