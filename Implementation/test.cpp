@@ -1,6 +1,7 @@
 #include <iostream>
 #include "concurrent.hpp"
 #include "time.h"
+#include "systimer.h"
 
 #define NUM_INSERT_THREADS 2
 #define NUM_DELETE_THREADS 2
@@ -112,10 +113,11 @@ void *searcher(void* args)
 template <class V>
 void *dynamic_worker(void *args)
 {
-    ArgsStruct *myArgs = (ArgsStruct *) args;
+    ArgsStruct<V> *myArgs = (ArgsStruct<V> *) args;
     uint32_t sw = myArgs->mSearchWeight;
     uint32_t iw = myArgs->mInsertWeight + sw;
     uint32_t dw = myArgs->mDeleteWeight + iw;
+    uint32_t total_weight = dw;
     int num_ops = NUM_DYNAMIC_OPERATIONS_PER_THREAD;
     uint32_t roll;
 
@@ -187,6 +189,8 @@ int main(void)
     uint32_t iw = INSERT_WEIGHT;
     uint32_t dw = DELETE_WEIGHT;
 
+    uint64 time_start = GetTimeMs64();
+
     for(int i = 0; i < NUM_DYNAMIC_THREADS; i++) {
         pthread_create(&threads[i], NULL, dynamic_worker<std::string>, (void *) new ArgsStruct<std::string>(tree, i, sw, iw, dw));
     }
@@ -195,6 +199,12 @@ int main(void)
     {
         pthread_join(threads[i], NULL);
     }
+
+    uint64 time_end = GetTimeMs64();
+
+    uint64 time_elapsed = time_end - time_start;
+
+    std::cout << time_elapsed << std::endl;
 
     pthread_mutex_destroy(&outputStream);
     free(threads);

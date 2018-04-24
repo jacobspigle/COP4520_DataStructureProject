@@ -79,7 +79,7 @@ void ConcurrentTree<V>::Delete(uint32_t key, int myid)
         // opData->mValue = nullptr;
 
         //remove the key from the tree
-        ExecuteOperation(opData);
+        ExecuteOperation(opData, myid);
 
         if(pidOpData != nullptr) {
             // help the selected search operation complete

@@ -335,6 +335,7 @@ While converting \cite{c1}'s algorithm to C++, we discovered that we have no def
 In our implementation we created what equates to a dice roller algorithm for deciding the operations that a thread will perform upon completion of another operation. We give weights to each of the operations at the top of the test file so we are able to dynamically change our tests to fit a particular set of test conditions.
 
 \subsection{Obstacles}
+The main obstacle we faced was filling in the blanks on the details of the main algorithm and the referenced algorithms. The paper sets up a general skeleton of the concurrent wait-free red black tree, but the important details that differentiate a simpler concurrent red-black tree or even a lock-free red black tree from a wait-free version are left to the reader. Most of our time was spent examining referenced papers and developing our own ideas on improving them in the way the authors described.
 
 \subsubsection{\textit{new} vs. malloc}
 On our first pass-through of implementing our code, we used the keyword \textit{new} when initializing our class variables. Later, we realized that \textit{new} was not compatible with the RSTM library, and because part of our efforts sought to utilize RSTM, we made the switch to \textbf{malloc}. It is important to note that both \textit{new} and \textit{malloc} come at the cost of throughput. This is because while both are thread safe, they are only so because of the internal locking that they utilize in memory blocks that they access.
@@ -401,7 +402,6 @@ We utilized an Intel 4-core i5 chip running on a 64-bit Linux Ubuntu 16.04 Virtu
 	
 	Our presentation of both the concurrent and transactional data structure implementations deriving from \cite{c1} demonstrates the linearizibility of the resulting C++ program. Searching in the Red-Black tree using these algorithms will be significantly less expensive due to the lack of helping. Modify operations that are performed in separate windows are able to execute concurrently without loss of correctness at any point because of the single word compare and swap instructions used when swapping out windows during a window transaction.
 
-	
 	\section*{APPENDIX}
 	
 	\begin{thebibliography}{99}

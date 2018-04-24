@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017) (preloaded format=pdflatex 2017.5.23)  24 APR 2018 02:56
+This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017) (preloaded format=pdflatex 2017.5.23)  24 APR 2018 03:00
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -479,55 +479,46 @@ LaTeX Warning: Reference `packedpointer' on page 4 undefined on input line 182.
 [4] (../Implementation/concurrent.tcc)
 LaTeX Font Info:    Font shape `OT1/pcr/m/it' in size <8> not available
 (Font)              Font shape `OT1/pcr/m/sl' tried instead on input line 206.
- [5]
-Underfull \hbox (badness 10000) in paragraph at lines 343--345
+ [5] [6]
+Underfull \hbox (badness 10000) in paragraph at lines 344--346
 
  []
 
-[6] [7] <images/WriteDominatedConcurrent.png, id=33, 445.665pt x 245.91875pt>
+[7] <images/WriteDominatedConcurrent.png, id=33, 445.665pt x 245.91875pt>
 File: images/WriteDominatedConcurrent.png Graphic file (type png)
 
 <use images/WriteDominatedConcurrent.png>
 Package pdftex.def Info: images/WriteDominatedConcurrent.png used on input line
- 377.
+ 378.
 (pdftex.def)             Requested size: 267.40106pt x 147.55237pt.
 
-Overfull \hbox (21.68295pt too wide) in paragraph at lines 377--378
+Overfull \hbox (21.68295pt too wide) in paragraph at lines 378--379
  [][] 
  []
-
-
-LaTeX Warning: `h' float specifier changed to `ht'.
 
 <images/SearchDominatedConcurrent.png, id=35, 446.66875pt x 245.91875pt>
 File: images/SearchDominatedConcurrent.png Graphic file (type png)
 
 <use images/SearchDominatedConcurrent.png>
 Package pdftex.def Info: images/SearchDominatedConcurrent.png used on input lin
-e 384.
+e 385.
 (pdftex.def)             Requested size: 268.00331pt x 147.55237pt.
 
-Overfull \hbox (22.2852pt too wide) in paragraph at lines 384--385
+Overfull \hbox (22.2852pt too wide) in paragraph at lines 385--386
  [][] 
  []
-
-
-LaTeX Warning: `h' float specifier changed to `ht'.
 
 <images/mixedWorkloadConcurrent.png, id=36, 447.6725pt x 255.95625pt>
 File: images/mixedWorkloadConcurrent.png Graphic file (type png)
 
 <use images/mixedWorkloadConcurrent.png>
 Package pdftex.def Info: images/mixedWorkloadConcurrent.png used on input line 
-391.
+392.
 (pdftex.def)             Requested size: 268.60556pt x 153.57492pt.
 
-Overfull \hbox (22.88745pt too wide) in paragraph at lines 391--392
+Overfull \hbox (22.88745pt too wide) in paragraph at lines 392--393
  [][] 
  []
-
-
-LaTeX Warning: `h' float specifier changed to `ht'.
 
 [8 <./images/WriteDominatedConcurrent.png> <./images/SearchDominatedConcurrent.
 png>]
@@ -553,7 +544,7 @@ LaTeX Warning: There were undefined references.
 Here is how much of TeX's memory you used:
  4737 strings out of 492995
  69503 string characters out of 6132704
- 431979 words of memory out of 5000000
+ 430979 words of memory out of 5000000
  8191 multiletter control sequences out of 15000+600000
  54945 words of font info for 114 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
@@ -567,7 +558,7 @@ onts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1
 /urw/times/utmbi8a.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/urw/time
 s/utmr8a.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/urw/times/utmri8a.
 pfb>
-Output written on Group16_DataStructureProject_Document.pdf (9 pages, 168804 by
+Output written on Group16_DataStructureProject_Document.pdf (9 pages, 169111 by
 tes).
 PDF statistics:
  74 PDF objects out of 1000 (max. 8388607)
