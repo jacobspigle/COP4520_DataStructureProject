@@ -18,11 +18,25 @@ struct ArgsStruct
 {
     ConcurrentTree<V> *mTree;
     int mPid;
+    uint32_t mSearchWeight;
+    uint32_t mInsertWeight;
+    uint32_t mDeleteWeight;
+    int mOps;
 
     ArgsStruct(ConcurrentTree<V> *tree, int pid)
     {
         mTree = tree;
         mPid = pid;
+    }
+
+    ArgsStruct(ConcurrentTree<V> *tree, int pid, int ops, int sw, int iw, int dw)
+    {
+        mTree = tree;
+        mPid = pid;
+        mSearchWeight = sw;
+        mInsertWeight = iw;
+        mDeleteWeight = dw;
+        mOps = ops;
     }
 };
 
@@ -31,7 +45,7 @@ void *inserter(void* args)
 {
     ArgsStruct<V> *myArgs = (ArgsStruct<V>*) args;
 
-    for(int i=0; i<NUM_INSERT_THREADS; i++) {
+    for(int i=0; i<INSERTIONS_PER_THREAD; i++) {
         char buffer[8];
         uint32_t hash = 0;
 
@@ -55,6 +69,18 @@ void *deleter(void* args)
 {
     ArgsStruct<V> *myArgs = (ArgsStruct<V>*) args;
 
+    for(int i=0; i<DELETIONS_PER_THREAD; i++) {
+        char buffer;
+        uint32_t hash = 0;
+
+        for(int i=0; i<7; i++) {
+            buffer = rand() % ('z' - 'a') + 'a';
+            hash = (31 * hash) + (uint32_t) buffer;
+        }
+
+        myArgs->mTree->Delete(hash, myArgs->mPid);
+    }
+
     return nullptr;
 }
 
@@ -63,8 +89,83 @@ void *searcher(void* args)
 {
     ArgsStruct<V> *myArgs = (ArgsStruct<V>*) args;
 
+    for(int i=0; i<SEARCHES_PER_THREAD; i++) {
+        char buffer;
+        uint32_t hash = 0;
+
+        for(int i=0; i<7; i++) {
+            buffer = rand() % ('z' - 'a') + 'a';
+            hash = (31 * hash) + (uint32_t) buffer;
+        }
+
+        myArgs->mTree->Search(hash, myArgs->mPid);
+    }
+
     return nullptr;
 
+}
+
+template <class V>
+void *dynamic_worker(void *args)
+{
+    ArgsStruct *myArgs = (ArgsStruct *) args;
+    uint32_t sw = myArgs->mSearchWeight;
+    uint32_t iw = myArgs->mInsertWeight + sw;
+    uint32_t dw = myArgs->mDeleteWeight + iw;
+    int num_ops = myArgs->mOps;
+    uint32_t roll;
+
+    while(num_ops --> 0)
+    {
+        roll = rand() % total_weight;
+
+        if(roll < sw) {
+            // SEARCH
+            char buffer;
+            uint32_t hash = 0;
+
+            for(int i=0; i<7; i++) {
+                buffer = rand() % ('z' - 'a') + 'a';
+                hash = (31 * hash) + (uint32_t) buffer;
+            }
+
+            myArgs->mTree->Search(hash, myArgs->mPid);
+        }
+        else if(roll < iw) {
+            // INSERT or UPDATE
+            char buffer[8];
+            uint32_t hash = 0;
+
+            for(int i=0; i<7; i++) {
+                buffer[i] = rand() % ('z' - 'a') + 'a';
+                hash = (31 * hash) + (uint32_t) buffer[i];
+            }
+            
+            buffer[7] = '\0';
+            std::string str (buffer);
+            std::string *str_ptr = (std::string *) malloc(str.size());
+
+            myArgs->mTree->InsertOrUpdate(hash, str_ptr, myArgs->mPid);
+        }
+        else if(roll < dw) {
+            // DELETE
+            char buffer;
+            uint32_t hash = 0;
+
+            for(int i=0; i<7; i++) {
+                buffer = rand() % ('z' - 'a') + 'a';
+                hash = (31 * hash) + (uint32_t) buffer;
+            }
+
+            myArgs->mTree->Delete(hash, myArgs->mPid);
+        }
+        else {
+            // 0 weight for each operation. no operation can be chosen.
+            break;
+        }
+    }
+
+    return nullptr;
 }
 
 int main(void)
