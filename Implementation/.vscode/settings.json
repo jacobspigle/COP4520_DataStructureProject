@@ -19,6 +19,8 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "*.tcc": "cpp",
-        "__locale": "cpp"
+        "__locale": "cpp",
+        "__config": "cpp",
+        "__nullptr": "cpp"
     }
 }

@@ -228,7 +228,19 @@ Traverse(pidOpData);
 While converting \cite{c1}'s algorithm to C++, we discovered that we have no defined window size. We chose 2 to be our window depth in our implementation, so any given window will contain 1-3 nodes depending on its' location in the red black tree. We show this in \ref{windowcreation}, where we build our current W\textsubscript{L} before we modify it. \textit{windowSoFar} starts as our root, and comes from \textit{pCurrent}, the pointer node that maintains this window in the tree (Line 1). We instantiate our pointer node and data node that we will use to copy the W\textsubscript{G} into our W\textsubscript{L} (Lines 3 \& 4), and because our window depth is 2, we check to ensure that we've acquired both the root's left and right child into our copied window (Lines 13 \& 17). We do this one at a time, setting our \textit{pNextToAdd} and \textit{dNextToAdd} to our \textit{pCurrent}'s data node children (Lines 14 \& 18). If our \textit{pNextToAdd} is a \textit{nullptr}, the current node has no children and we can stop with the current window being a size of 1 (Line 31). If the copied node has a pending transaction, we help perform the instruction given the information in \textit{mOpData} (Line 37). Then we can acquire \textit{pNextToAdd}'s data node (Line 40), and inject the current \textit{pNextToAdd} (whether that is currently the root's left or right child) into our window (Lines 43 \& 47).
 
 \subsection{Obstacles}
+
+
+
+\subsubsection{PackedPointer}
+We ran into problems initially with our PackedPointer objects because of our use of tagging, specifically any time that we attempted to dereference a PackedPointer we were running into a segmentation fault. We found out that it was necessary for us to remove the tag from the pointer before dereferencing, as the compiler checks the top 12-16 bits are 0 to ensure future safety in case higher bit addressing is added in subsequent operating systems or hardware.
+
+\subsubsection{\textit{new} vs. malloc}
+On our first pass-through of implementing our code, we used the keyword \textit{new} when initializing our class variables. Later, we realized that \textit{new} was not compatible with the RSTM library, and because part of our efforts sought to utilize RSTM, we made the switch to \textbf{malloc}. It is important to note that both \textit{new} and \textit{malloc} come at the cost of throughput. This is because while both are thread safe, they are only so because of the internal locking that they utilize in memory blocks that they access.
+
+
 	
+\subsection{RSTM Library}
+Our implementation of the RSTM Library was fairly simple to translate, because of our use of POSIX threads and malloc we could simply scope out the lines of code that needed to be adjusted. Namely, malloc was changed to TM\_ALLOC, assignments are changed to TM\_WRITE, we did not utilize TM\_READ as much as our TM\_WRITE. This is because most of our variables are initialized early on, and most of our conditional statements were either constants or \textit{nullptr}.
 
 \section{Informal Proofs}
 
@@ -255,7 +267,7 @@ We utilized an Intel 4-core i5 chip running on a 64-bit Linux Ubuntu 16.04 Virtu
 	\end{itemize}
 	\item \textit{Degrees of Contention:} The number of threads in each test phase of our experimentation varied from 1, 2, 4, and 8 threads sharing the same data structure, each running our 500,000 operations.
 \end{itemize}
-
+\begin{comment}
 \begin{figure}[thpb]
 	\centering
 	\framebox{\parbox{3in}{
@@ -328,9 +340,14 @@ We utilized an Intel 4-core i5 chip running on a 64-bit Linux Ubuntu 16.04 Virtu
 	\caption{(c) Mixed Workload | Transactional Operations : 3}
 	\label{mixedWork3}
 \end{figure}
+\end{comment}
 
 \subsection{Experimental Results}
 
+\begin{comment}
+\textit{Note that these experimental results were aggregated from a previous iteration of our code. The code we have submitted is the progress that we have made since the experimentation to re-implement \cite{c1}'s data structure.}
+\end{comment}
+Graphing and our result analysis are in progress, we will be updating this document with the final results from our experimentation.
 
 	\section{CONCLUSIONS}
 	
