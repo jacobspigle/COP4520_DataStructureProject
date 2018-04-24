@@ -54,6 +54,15 @@ public:
         mPackedPointer = (T*)((uint64_t) packedPointer | mask);
     }
 
+    void InitializeStateNode(T *packedPointer, U tag)
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (T*)((uint64_t) packedPointer | mask);
+    }
+
     void setPointerAndPreserveTag(T *pointer)
     {
         U tag = getTag();
@@ -130,6 +139,15 @@ public:
     }
 
     NextNode(T *packedPointer, U tag)
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (T*)((uint64_t) packedPointer | mask);
+    }
+
+    void InitializeNextNode(T *packedPointer, U tag)
     {
         mPackedPointer = (T *) malloc(sizeof(T));
         uint64_t mask = (uint64_t) 0b11 << 62;
@@ -222,6 +240,15 @@ public:
         mPackedPointer = (T*)((uint64_t) packedPointer | mask);
     }
 
+    void InitializePointerNode(T *packedPointer, U tag)
+    {
+        mPackedPointer = (T *) malloc(sizeof(T));
+        uint64_t mask = (uint64_t) 0b11 << 62;
+        mPackedPointer = (T*) ((uint64_t) packedPointer & (~mask));
+        mask = (uint64_t) tag << 62;
+        mPackedPointer = (T*)((uint64_t) packedPointer | mask);
+    }
+
     void setPointerAndPreserveTag(T *pointer)
     {
         U tag = getTag();
@@ -291,6 +318,12 @@ public:
         mValue = value;
         mGate = gate;
     }
+
+    void InitializeValueRecord(V *value, uint32_t gate)
+    {
+        mValue = value;
+        mGate = gate;
+    }
 };
 
 template <class V>
@@ -309,8 +342,15 @@ public:
         mKey = key;
         mValue = value;
         mPid = -1;
+        mState = (StateNode<Position<V>, Status> *) malloc(sizeof(StateNode<Position<V>, Status>));
+    }
 
-        mValue = nullptr;
+    void InitializeOperationRecord(Type type, uint32_t key, V *value)
+    {
+        mType = type;
+        mKey = key;
+        mValue = value;
+        mPid = -1;
         mState = (StateNode<Position<V>, Status> *) malloc(sizeof(StateNode<Position<V>, Status>));
     }
 };
@@ -334,7 +374,9 @@ public:
     {
         mColor = BLACK;
         mKey = UINT32_MAX;
-        mValData = new ValueRecord<V>(nullptr, 0);
+        //mValData = new ValueRecord<V>(nullptr, 0);
+        mValData = (ValueRecord<V> *) malloc(sizeof(ValueRecord<V>));
+
         mLeft = nullptr;
         mRight = nullptr;
         mOpData = nullptr;
@@ -343,7 +385,8 @@ public:
 
     DataNode *clone()
     {
-        DataNode *copy = new DataNode();
+        //DataNode *copy = new DataNode();
+        DataNode *copy = (DataNode<V> *) malloc(sizeof(DataNode<V>));
         copy->mColor = mColor;
         copy->mKey = mKey;
         copy->mValData = mValData;
@@ -368,7 +411,9 @@ public:
         mNumThreads = numThreads;
 
         // initialize pRoot with sentinel-valued DataNode
-        auto pRoot = new PointerNode<DataNode<V>, Flag>(new DataNode<V>(), Flag::FREE);
+        //auto pRoot = new PointerNode<DataNode<V>, Flag>(new DataNode<V>(), Flag::FREE);
+        auto pRoot = (PointerNode<DataNode<V>, Flag> *) malloc(sizeof(PointerNode<DataNode<V>, Flag>));
+        pRoot->InitializePointerNode((DataNode<V> *)malloc(sizeof(DataNode<V>)), Flag::FREE);
 
         ST = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
         MT = (OperationRecord<V>**) malloc (sizeof(OperationRecord<V>*) * numThreads);
