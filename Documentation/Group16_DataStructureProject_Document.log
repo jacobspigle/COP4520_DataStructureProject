@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017) (preloaded format=pdflatex 2017.5.23)  24 APR 2018 03:00
+This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017) (preloaded format=pdflatex 2017.5.23)  24 APR 2018 03:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -471,16 +471,12 @@ File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 )
 LaTeX Font Info:    Font shape `OT1/pcr/bx/n' in size <8> not available
 (Font)              Font shape `OT1/pcr/b/n' tried instead on input line 131.
-
-
-LaTeX Warning: Reference `packedpointer' on page 4 undefined on input line 182.
-
-
-[4] (../Implementation/concurrent.tcc)
+ [4]
 LaTeX Font Info:    Font shape `OT1/pcr/m/it' in size <8> not available
-(Font)              Font shape `OT1/pcr/m/sl' tried instead on input line 206.
- [5] [6]
-Underfull \hbox (badness 10000) in paragraph at lines 344--346
+(Font)              Font shape `OT1/pcr/m/sl' tried instead on input line 216.
+ [5]
+[6]
+Underfull \hbox (badness 10000) in paragraph at lines 354--356
 
  []
 
@@ -489,10 +485,10 @@ File: images/WriteDominatedConcurrent.png Graphic file (type png)
 
 <use images/WriteDominatedConcurrent.png>
 Package pdftex.def Info: images/WriteDominatedConcurrent.png used on input line
- 378.
+ 388.
 (pdftex.def)             Requested size: 267.40106pt x 147.55237pt.
 
-Overfull \hbox (21.68295pt too wide) in paragraph at lines 378--379
+Overfull \hbox (21.68295pt too wide) in paragraph at lines 388--389
  [][] 
  []
 
@@ -501,10 +497,10 @@ File: images/SearchDominatedConcurrent.png Graphic file (type png)
 
 <use images/SearchDominatedConcurrent.png>
 Package pdftex.def Info: images/SearchDominatedConcurrent.png used on input lin
-e 385.
+e 395.
 (pdftex.def)             Requested size: 268.00331pt x 147.55237pt.
 
-Overfull \hbox (22.2852pt too wide) in paragraph at lines 385--386
+Overfull \hbox (22.2852pt too wide) in paragraph at lines 395--396
  [][] 
  []
 
@@ -513,10 +509,10 @@ File: images/mixedWorkloadConcurrent.png Graphic file (type png)
 
 <use images/mixedWorkloadConcurrent.png>
 Package pdftex.def Info: images/mixedWorkloadConcurrent.png used on input line 
-392.
+402.
 (pdftex.def)             Requested size: 268.60556pt x 153.57492pt.
 
-Overfull \hbox (22.88745pt too wide) in paragraph at lines 392--393
+Overfull \hbox (22.88745pt too wide) in paragraph at lines 402--403
  [][] 
  []
 
@@ -542,13 +538,13 @@ LaTeX Warning: There were undefined references.
 
  ) 
 Here is how much of TeX's memory you used:
- 4737 strings out of 492995
- 69503 string characters out of 6132704
- 430979 words of memory out of 5000000
- 8191 multiletter control sequences out of 15000+600000
- 54945 words of font info for 114 fonts, out of 8000000 for 9000
+ 4742 strings out of 492995
+ 69544 string characters out of 6132704
+ 430987 words of memory out of 5000000
+ 8200 multiletter control sequences out of 15000+600000
+ 56041 words of font info for 115 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 39i,8n,58p,2057b,1134s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 39i,8n,58p,2067b,1134s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2017/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
 exlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/te
 xlive/2017/texmf-dist/fonts/type1/urw/courier/ucrb8a.pfb></usr/local/texlive/20
@@ -558,7 +554,7 @@ onts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1
 /urw/times/utmbi8a.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/urw/time
 s/utmr8a.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/urw/times/utmri8a.
 pfb>
-Output written on Group16_DataStructureProject_Document.pdf (9 pages, 169111 by
+Output written on Group16_DataStructureProject_Document.pdf (9 pages, 170309 by
 tes).
 PDF statistics:
  74 PDF objects out of 1000 (max. 8388607)

@@ -177,9 +177,11 @@ Our goal was to recreate the concurrent wait-free red black tree algorithm prese
 					return (U) ((uint64_t) mPackedPointer >> 62);
 				}
 		\end{lstlisting}
+		\caption{PackedPointer Class}
+		\label{packedpointer}
 	\end{figure}
 	
-	We created a class in our implementation titled `PackedPointer' \ref{packedpointer}to help us facilitate the single-word dual-use nature of each pointer node, the data node's \textit{next} field, as well as the operation record's \textit{state} field. Because we needed to update these fields in a single atomic instruction, it made sense to use a bitmasking technique, where we steal the unused 2 bits in the most-significant bit section of any given pointer. We cast the pointer as a \textit{uint64\_t} datatype to ensure that these two bits will never be use, because in a 64-bit system pointers will only utilize the 48 least-significant bits. If we had decided to use a \textit{uint32\_t} datatype, we would have to ensure that each pointer was memory aligned and would not interfere with our \textit{tag} bits. We created supporting methods in our class creation to aid us when utilizing our PackedPointer data structure in the tree. \textit{setPointerAndPreserveTag} allows us to feed a PackedPointer a new address while still maintaining its' flag of being FREE or OWNED. \textit{unpack} is necessary when retrieving data from the address that our PackedPointer is holding. \textit{setTag} allows us to change the state or flag of a PackedPointer, and \textit{getTag} allows us to strip off the address contained in a PackedPointer to view only the status or flag set on the PackedPointer currently. In \ref{packedpointerexample} we demonstrate how these PackedPointer data structures are created and utilized inside our code. We use the constructor method of PackedPointer to create brand new PackedPointers that address their respective data nodes and set the expected \textit{tag}. This way, when we run our compare and swap operation (\_\_sync\_bool\_compare\_and\_swap), we can verify that our \textit{pRoot} pointer node matches our expected \textit{pRootFree} pointer node, and if this is true then we can claim ownership of the root by swapping \textit{pCopyOwned} into it.
+	We created a class in our implementation titled `PackedPointer' (Figure \ref{packedpointer}) to help us facilitate the single-word dual-use nature of each pointer node, the data node's \textit{next} field, as well as the operation record's \textit{state} field. Because we needed to update these fields in a single atomic instruction, it made sense to use a bitmasking technique, where we steal the unused 2 bits in the most-significant bit section of any given pointer. We cast the pointer as a \textit{uint64\_t} datatype to ensure that these two bits will never be use, because in a 64-bit system pointers will only utilize the 48 least-significant bits. If we had decided to use a \textit{uint32\_t} datatype, we would have to ensure that each pointer was memory aligned and would not interfere with our \textit{tag} bits. We created supporting methods in our class creation to aid us when utilizing our PackedPointer data structure in the tree. \textit{setPointerAndPreserveTag} allows us to feed a PackedPointer a new address while still maintaining its' flag of being FREE or OWNED. \textit{unpack} is necessary when retrieving data from the address that our PackedPointer is holding. \textit{setTag} allows us to change the state or flag of a PackedPointer, and \textit{getTag} allows us to strip off the address contained in a PackedPointer to view only the status or flag set on the PackedPointer currently. In \ref{packedpointerexample} we demonstrate how these PackedPointer data structures are created and utilized inside our code. We use the constructor method of PackedPointer to create brand new PackedPointers that address their respective data nodes and set the expected \textit{tag}. This way, when we run our compare and swap operation (\_\_sync\_bool\_compare\_and\_swap), we can verify that our \textit{pRoot} pointer node matches our expected \textit{pRootFree} pointer node, and if this is true then we can claim ownership of the root by swapping \textit{pCopyOwned} into it.
 	
 	\begin{figure}
 		\begin{lstlisting}
@@ -193,7 +195,15 @@ Our goal was to recreate the concurrent wait-free red black tree algorithm prese
 	\end{figure}
 
 	\begin{figure}
-		\lstinputlisting[firstnumber=86, firstline=86, lastline=92]{../Implementation/concurrent.tcc}
+		\begin{lstlisting}
+			template <class V>
+			uint32_t ConcurrentTree<V>::Select()
+			{
+				uint32_t fetched_pid = TM_READ(this->mIndex);
+				TM_WRITE(this->mIndex, (this->mIndex + 1) % this->mNumThreads);
+				return fetched_pid;
+			}
+		\end{lstlisting}
 		\caption{Select Function}
 		\label{selectfunction}
 	\end{figure}
@@ -396,10 +406,9 @@ We utilized an Intel 4-core i5 chip running on a 64-bit Linux Ubuntu 16.04 Virtu
 \end{figure}
 
 \subsection{Experimental Results}
-\textit{Note that these experimental results were aggregated from a previous iteration of our code. The code we have submitted is the progress that we have made since the experimentation to further our re-implementation of \cite{c1}'s proposed data structure.}
+\textit{\textbf{Note:} These experimental results were aggregated from a previous iteration of our code. The code we have submitted is the progress that we have made since the experimentation to further our re-implementation of \cite{c1}'s proposed data structure.}
 
 	\section{CONCLUSIONS}
-	
 	Our presentation of both the concurrent and transactional data structure implementations deriving from \cite{c1} demonstrates the linearizibility of the resulting C++ program. Searching in the Red-Black tree using these algorithms will be significantly less expensive due to the lack of helping. Modify operations that are performed in separate windows are able to execute concurrently without loss of correctness at any point because of the single word compare and swap instructions used when swapping out windows during a window transaction.
 
 	\section*{APPENDIX}
